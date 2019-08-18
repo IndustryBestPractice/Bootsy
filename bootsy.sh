@@ -7,6 +7,7 @@ fi
 
 # Run as whatever the current logged in user is
 # Set install path
+start_dir=`echo $PWD`
 install_path=/bootsy
 recommended_python_version="3.5.3"
 
@@ -27,12 +28,30 @@ if [ -d "$install_path/artillery" ]; then
 	rm "$install_path/artillery" -rf
 fi
 
+# Check for the rockyou.txt wordlist
+if [ -f "$install_path/rockyou.txt.gz" ]; then
+	echo "[+]Removing old rockyou wordlist"
+	rm "$install_path/rockyou.txt.gz" -rf
+fi
+
+if [ -f "$install_path/words" ]; then
+	echo "[+]Removing old words file"
+	rm "$install_path/words"
+fi
+
+if [ -f "$start_dir/words" ]; then
+	echo "[+]Removing old words file from $start_dir"
+	rm "$start_dir/words"
+fi
+
 # Download stuff
 echo "[+]Downloading respounder!"
 git clone https://github.com/IndustryBestPractice/respounder.git
 # Still need to unzip the package here....
 echo "[+]Downloading artillery"
 git clone https://github.com/IndustryBestPractice/artillery.git
+echo "[+]Downloading rockyou"
+wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
 
 if [ ! -d "$install_path/respounder" ]; then
 	echo "[+]Path variable is: $install_path/respounder"
@@ -45,8 +64,21 @@ if [ ! -d "$install_path/artillery" ]; then
 	artillery_error="TRUE"
 fi
 
-if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ]; then
-	echo "[+]Errors occured installing respounder or artillery! Exiting!"
+if [ ! -f "$install_path/rockyou.txt.gz" ]; then
+	echo "[+]Error downloading rockyou!"
+	rockyou_error="TRUE"
+else
+	mv rockyou.txt.gz $start_dir
+	gunzip "$start_dir/rockyou.txt.gz"
+	mv "$start_dir/rockyou.txt" "$start_dir/words"
+	# Removing non UTF8 characters
+	iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
+	rm "$start_dir/words"
+	mv "$start_dir/words2" "$start_dir/words"
+fi
+
+if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "rockyou_error" == "TRUE"]; then
+	echo "[+]Errors occured installing respounder, artillery or RockYou! Exiting!"
 	exit
 fi
 
@@ -86,4 +118,7 @@ if [ ! -f "$csv_path" ]; then
 	echo "[+]File $csv_path appears to either not exist or is not reachable."
 	echo "[+]Exiting setup!"
 	exit
+else
+	echo "[+]Executing python network interface setup."
+	#python3 "$start_dir/buildIPs.py"
 fi
