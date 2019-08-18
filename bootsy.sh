@@ -72,12 +72,12 @@ else
 fi
 
 # Now that everything is installed as expected, we need to prompt for the path to the IP_LIST file.
-echo "[+]Please enter an accessbile local or network path containing the IP CSV list file."
-echo "[+]The format of the CSV is:"
-echo "	ip,mask,gateway,vlanid"
-echo "	10.0.0.2,255.255.255.0,10.0.0.1,10"
-echo "	etc..."
-echo -n "[+]Enter the path and press [ENTER]: "
+echo "[+]Please enter an accessible local or network path containing the IP CSV list file."
+echo "[+]The format of the CSV must be:"
+echo "[+]	ip,mask,gateway,vlanid"
+echo "[+]	10.0.0.2,255.255.255.0,10.0.0.1,10"
+echo "[+]	etc..."
+echo -n "[+]Enter the path the CSV file and press [ENTER]: "
 read csv_path
 
 # Now validate we can see the file
