@@ -121,5 +121,5 @@ if [ ! -f "$csv_path" ]; then
 else
 	echo "[+]Executing python network interface setup."
 	cd $start_dir
-	python3 "$start_dir/buildIPs.py"
+	python3 "$start_dir/buildIPs.py" "$csv_path"
 fi
