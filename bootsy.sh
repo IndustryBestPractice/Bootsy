@@ -46,12 +46,12 @@ fi
 
 # Download stuff
 echo "[+]Downloading respounder!"
-git clone https://github.com/IndustryBestPractice/respounder.git
+/usr/bin/git clone https://github.com/IndustryBestPractice/respounder.git
 # Still need to unzip the package here....
 echo "[+]Downloading artillery"
-git clone https://github.com/IndustryBestPractice/artillery.git
+/usr/bin/git clone https://github.com/IndustryBestPractice/artillery.git
 echo "[+]Downloading rockyou"
-wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
+/usr/bin/wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
 
 if [ ! -d "$install_path/respounder" ]; then
 	echo "[+]Path variable is: $install_path/respounder"
@@ -69,10 +69,10 @@ if [ ! -f "$install_path/rockyou.txt.gz" ]; then
 	rockyou_error="TRUE"
 else
 	mv rockyou.txt.gz $start_dir
-	gunzip "$start_dir/rockyou.txt.gz"
+	/bin/gunzip "$start_dir/rockyou.txt.gz"
 	mv "$start_dir/rockyou.txt" "$start_dir/words"
 	# Removing non UTF8 characters
-	iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
+	/usr/bin/iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
 	rm "$start_dir/words"
 	mv "$start_dir/words2" "$start_dir/words"
 fi
@@ -84,7 +84,7 @@ fi
 
 # Get python version
 echo "[+]Getting python version..."
-python_version=$(python3 --version 2>&1 | cut -d ' ' -f 2)
+python_version=$(python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
 
 # Verify it is a version we're expecting
 if [ "$python_version" == "$recommended_python_version" ]; then
@@ -121,5 +121,20 @@ if [ ! -f "$csv_path" ]; then
 else
 	echo "[+]Executing python network interface setup."
 	cd $start_dir
-	python3 "$start_dir/buildIPs.py" "$csv_path"
+	/usr/bin/python3 "$start_dir/buildIPs.py" "$csv_path"
 fi
+
+# Now we copy the created network files in place
+/bin/cp "$start_dir/ips/*" "/etc/network/interfaces.d"
+# Now we start each of the interfaces
+for IFACE in $(ls /etc/network/interfaces.d/*-*)
+do
+	#echo "Checking file $IFACE"
+	interface_name=`echo $IFACE | /usr/bin/rev | /usr/bin/cut -d / -f 1 | /usr/bin/rev`
+	#echo "interface name is $interface_name"
+	IFACE2=`echo $interface_name | /usr/bin/awk -F "-" '{print $1 ":" $2}'`
+	#echo "parsed name is $IFACE2"
+	#echo $IFACE2
+	echo "Starting interface adapter: $IFACE2"
+	/sbin/ifup $IFACE2
+done
