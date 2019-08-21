@@ -1,130 +1,147 @@
 #!/bin/bash
 
+function logger {
+	GREEN='\033[0;32m'
+	NC='\033[0m' # No Color
+	/bin/echo -e "${GREEN}[+]${NC}$1"
+}
+
+function error {
+	RED='\033[0;31m'
+	NC='\033[0m' # No Color
+	/bin/echo -e "${RED}[-]${NC}$1"
+}
+
 if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root" 
+   error "This script must be run as root" 
    exit 1
 fi
 
-# Run as whatever the current logged in user is
 # Set install path
-start_dir=`echo $PWD`
+start_dir=`/bin/echo $PWD`
 install_path=/bootsy
 recommended_python_version="3.5.3"
 
 if [ ! -d "$install_path" ]; then
-	echo "[+]Creating folder $install_path"
-	mkdir "$install_path"
+	logger "Creating folder $install_path"
+	/bin/mkdir "$install_path"
 fi
 
 cd "$install_path"
 
 if [ -d "$install_path/respounder" ]; then
-	echo "[+]Removing old folder $install_path/respounder"
-	rm "$install_path/respounder" -rf
+	error "Removing old folder $install_path/respounder"
+	/bin/rm "$install_path/respounder" -rf
 fi
 
 if [ -d "$install_path/artillery" ]; then
-	echo "[+]Removing old folder $install_path/artillery"
-	rm "$install_path/artillery" -rf
+	error "Removing old folder $install_path/artillery"
+	/bin/rm "$install_path/artillery" -rf
 fi
 
 # Check for the rockyou.txt wordlist
 if [ -f "$install_path/rockyou.txt.gz" ]; then
-	echo "[+]Removing old rockyou wordlist"
-	rm "$install_path/rockyou.txt.gz" -rf
+	error "Removing old rockyou wordlist from $install_path/rockyou.txt.gz"
+	/bin/rm "$install_path/rockyou.txt.gz" -rf
 fi
 
 if [ -f "$install_path/words" ]; then
-	echo "[+]Removing old words file"
-	rm "$install_path/words"
+	error "Removing old words file from $install_path/words"
+	/bin/rm "$install_path/words"
 fi
 
 if [ -f "$start_dir/words" ]; then
-	echo "[+]Removing old words file from $start_dir"
-	rm "$start_dir/words"
+	error "Removing old words file from $start_dir/words"
+	/bin/rm "$start_dir/words"
 fi
 
 # Download stuff
-echo "[+]Downloading respounder!"
+logger "Downloading respounder!"
 /usr/bin/git clone https://github.com/IndustryBestPractice/respounder.git
 # Still need to unzip the package here....
-echo "[+]Installing Go"
+logger "Installing Go"
 apt-get install -y golang-go || respounder_error="TRUE"
-echo "[+]Building respounder"
+logger "Building respounder"
 go build -o $install_path/respounder/respounder $install_path/respounder/respounder.go || respounder_error="TRUE"
 
-echo "[+]Downloading artillery"
+logger "Downloading artillery"
 /usr/bin/git clone https://github.com/IndustryBestPractice/artillery.git
-echo "[+]Downloading rockyou"
+logger "Downloading rockyou"
 /usr/bin/wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
 
 if [ ! -d "$install_path/respounder" ]; then
-	echo "[+]Path variable is: $install_path/respounder"
-	echo "[+]Error installing respounder!"
+	error "Path variable is: $install_path/respounder"
+	error "Error installing respounder!"
 	respounder_error="TRUE"
 fi
 
 if [ ! -d "$install_path/artillery" ]; then
-	echo "[+]Error installing artillery!"
+	error "Error installing artillery!"
 	artillery_error="TRUE"
 fi
 
 if [ ! -f "$install_path/rockyou.txt.gz" ]; then
-	echo "[+]Error downloading rockyou!"
+	error "Error downloading rockyou!"
 	rockyou_error="TRUE"
 else
-	mv rockyou.txt.gz $start_dir
+	logger "Moving rockyou.txt.gz to $start_dir"
+	/bin/mv rockyou.txt.gz $start_dir
+	logger "Unzipping rockyou..."
 	/bin/gunzip "$start_dir/rockyou.txt.gz"
-	mv "$start_dir/rockyou.txt" "$start_dir/words"
+	logger "Moving $start_dir/rockyou.txt to $start_dir/words"
+	/bin/mv "$start_dir/rockyou.txt" "$start_dir/words"
 	# Removing non UTF8 characters
+	logger "Removing non UTF-8 characters from words >> words2"
 	/usr/bin/iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
-	rm "$start_dir/words"
-	mv "$start_dir/words2" "$start_dir/words"
+	logger "Deleting $start_dir/words"
+	/bin/rm "$start_dir/words"
+	logger "Renaming $start_dir/words2 $start_dir/words"
+	/bin/mv "$start_dir/words2" "$start_dir/words"
 fi
 
-if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "rockyou_error" == "TRUE"]; then
-	echo "[+]Errors occured installing respounder, artillery or RockYou! Exiting!"
+if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "rockyou_error" == "TRUE" ]; then
+	error "Errors occured installing respounder, artillery or RockYou! Exiting!"
 	exit
 fi
 
 # Get python version
-echo "[+]Getting python version..."
-python_version=$(python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
+logger "Getting python version..."
+python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
 
 # Verify it is a version we're expecting
 if [ "$python_version" == "$recommended_python_version" ]; then
-	echo "[+]Python3 version ok!"
+	logger "Python3 version ok!"
 else
-	echo "[+]We detected Python3 version $python_version!"
-	echo "[+]Our recommended version is $recommended_python_version, and is what this was tested on."
-	echo "[+]You may choose to continue or you can exit and install the recommended version of Python3 now, and set it to the default instance."
+	logger "We detected Python3 version $python_version!"
+	logger "Our recommended version is $recommended_python_version, and is what this was tested on."
+	logger "You may choose to continue or you can exit and install the recommended version of Python3 now, and set it to the default instance."
 	while true; do
 		read -p "Do you want to continue? " yn
 		case $yn in
-			[Yy]* ) echo "[+]Continuing with script!"; break;;
+			[Yy]* ) /bin/echo "Continuing with script!"; break;;
 			[Nn]* ) exit;;
-			* ) echo "Please enter either [Y/y] or [N/n].";;
+			* ) /bin/echo "Please enter either [Y/y] or [N/n].";;
 		esac
 	done
 fi
 
 # Now that everything is installed as expected, we need to prompt for the path to the IP_LIST file.
-echo "[+]Please enter an accessible local or network path containing the IP CSV list file."
-echo "[+]The format of the CSV must be:"
-echo "[+]	ip,mask,gateway,vlanid"
-echo "[+]	10.0.0.2,255.255.255.0,10.0.0.1,10"
-echo "[+]	etc..."
-echo -n "[+]Enter the path the CSV file and press [ENTER]: "
+logger "Please enter an accessible local or network path containing the IP CSV list file."
+logger "The format of the CSV must be:"
+logger "	ip,mask,gateway,vlanid"
+logger "	10.0.0.2,255.255.255.0,10.0.0.1,10"
+logger "	etc..."
+/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
 read csv_path
 
 # Now validate we can see the file
 
 if [ ! -f "$csv_path" ]; then
-	echo "[+]File $csv_path appears to either not exist or is not reachable."
-	echo "[+]Exiting setup!"
+	error "File $csv_path appears to either not exist or is not reachable."
+	error "Exiting setup!"
 	exit
 else
-	echo "[+]Executing python network interface setup."
+	logger "Executing python network interface setup."
 	cd $start_dir
 	/usr/bin/python3 "$start_dir/buildIPs.py" "$csv_path"
 fi
@@ -135,11 +152,11 @@ fi
 for IFACE in $(ls /etc/network/interfaces.d/*-*)
 do
 	#echo "Checking file $IFACE"
-	interface_name=`echo $IFACE | /usr/bin/rev | /usr/bin/cut -d / -f 1 | /usr/bin/rev`
+	interface_name=`/bin/echo $IFACE | /usr/bin/rev | /usr/bin/cut -d / -f 1 | /usr/bin/rev`
 	#echo "interface name is $interface_name"
-	IFACE2=`echo $interface_name | /usr/bin/awk -F "-" '{print $1 ":" $2}'`
+	IFACE2=`/bin/echo $interface_name | /usr/bin/awk -F "-" '{print $1 ":" $2}'`
 	#echo "parsed name is $IFACE2"
 	#echo $IFACE2
-	echo "Starting interface adapter: $IFACE2"
-	/sbin/ifup $IFACE2
+	logger "Starting interface adapter: $IFACE2"
+	#/sbin/ifup $IFACE2
 done
