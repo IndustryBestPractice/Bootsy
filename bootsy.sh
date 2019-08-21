@@ -49,7 +49,7 @@ echo "[+]Downloading respounder!"
 /usr/bin/git clone https://github.com/IndustryBestPractice/respounder.git
 # Still need to unzip the package here....
 echo "[+]Installing Go"
-apt-get install -y goloang-go || respounder_error="TRUE"
+apt-get install -y golang-go || respounder_error="TRUE"
 echo "[+]Building respounder"
 go build -o $install_path/respounder/respounder $install_path/respounder/respounder.go || respounder_error="TRUE"
 
