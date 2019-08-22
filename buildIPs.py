@@ -6,6 +6,16 @@ import csv
 import re
 import os
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 def main(argv):
     # if we pass an argument for the CWD, use that instead of the REAL pwd
     # if len(sys.argv) > 1:
@@ -13,7 +23,7 @@ def main(argv):
     # else:
     #    cwd = (os.getcwd())
     cwd = (os.getcwd())
-    print("Current working directory is: " + str(cwd))
+    print(bcolors.OKGREEN + "[+]" + bcolors.ENDC + "Current working directory is: " + str(cwd))
     ipFile = cwd + "/ipList.csv"
     outDir = cwd + "/ips/"
     #outDir = "/etc/network/interfaces.d/"
@@ -33,27 +43,27 @@ def main(argv):
 
     # Check if files exist
     if not os.path.exists(ipFile):
-        print("[+]IP file: " + ipFile + " does not exist.")
+        print(bcolors.FAIL + "[-]" + bcolors.ENDC + "IP file: " + ipFile + " does not exist.")
         sys.exit(0)
     else:
-        print("[+]Found ipFile at location: " + str(ipFile) + ".")
+        print(bcolors.OKGREEN + "[+]" + bcolors.ENDC + "Found ipFile at location: " + str(ipFile) + ".")
 
     if not os.path.exists(outDir):
-        print("[+]Output directory: " + outDir + " does not exist - creating it!")
+        print(bcolors.FAIL + "[-]" + bcolors.ENDC + "Output directory: " + outDir + " does not exist - creating it!")
         try:
             os.mkdir(outDir)
-            print("[+]Created directory successfully!")
+            print(bcolors.OKGREEN + "[+]" + bcolors.ENDC + "Created directory successfully!")
         except:
-            print("[+]Error creating directory, exiting!")
+            print(bcolors.FAIL + "[-]" + bcolors.ENDC + "Error creating directory, exiting!")
             sys.exit(0)
     else:
-        print("[+]Found output directory: " + outDir + ".")
+        print(bcolors.OKGREEN + "[+]" + bcolors.ENDC + "Found output directory: " + outDir + ".")
 
     if not os.path.exists(wList):
-        print("[+]Word list: " + wList + " does not exist.")
+        print(bcolors.FAIL + "[-]" + bcolors.ENDC + "Word list: " + wList + " does not exist.")
         sys.exit(0)
     else:
-        print("[+]Found wordlist: " + wList + ".")
+        print(bcolors.OKGREEN + "[+]" + bcolors.ENDC + "Found wordlist: " + wList + ".")
 
 
     # read word list in for interfaces missing vlanid
@@ -74,7 +84,7 @@ def main(argv):
                  else:
                      vlanid = re.sub('[^a-zA-Z0-9\n\.]', '',lineList[lineCounter]).rstrip('\n')
                      lineCounter += 1
-                 print("[+]Creating vlan " + str(vlanid))
+                 print(bcolors.OKGREEN + "[+]" + bcolors.ENDC + "Creating vlan " + str(vlanid))
                  
                  outfile = outDir + "eth0-" + vlanid
                  outfile = outfile.strip(' ')
@@ -86,9 +96,9 @@ def main(argv):
                  settings += "netmask " + row['mask'] + "\r\n"
                  settings += "gateway " + row['gateway'] + "\r\n"
                  
-                 print("[+]Writing settings to file: ")
-                 print(str(settings))
-                 print("[+]Writing to file " + str(outf))
+                 print(bcolors.OKGREEN + "[+]" + bcolors.ENDC + "Writing settings to file: ")
+                 print(bcolors.OKGREEN + "[+]" + bcolors.ENDC + str(settings))
+                 print(bcolors.OKGREEN + "[+]" + bcolors.ENDC + "Writing to file " + str(outf))
                  outf.write(settings)
                  outf.close()
 
