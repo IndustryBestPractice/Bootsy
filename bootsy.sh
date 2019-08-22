@@ -143,10 +143,16 @@ logger "The format of the CSV must be:"
 logger "	ip,mask,gateway,vlanid"
 logger "	10.0.0.2,255.255.255.0,10.0.0.1,10"
 logger "	etc..."
-/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
-read csv_path
+logger "Press enter to use default path of $start_dir/ipList.csv"
+#/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
+read -p "Enter the CSV file path and press [ENTER]: " csv_path
 
 # Now validate we can see the file
+
+if [ -z "$csv_path" ]; then
+	logger "Default path chosen!"
+	csv_path="$start_dir/ipList.csv"
+fi
 
 if [ ! -f "$csv_path" ]; then
 	error "File $csv_path appears to either not exist or is not reachable."
@@ -172,3 +178,4 @@ do
 	logger "Starting interface adapter: $IFACE2"
 	#/sbin/ifup $IFACE2
 done
+
