@@ -60,7 +60,7 @@ logger "Downloading respounder!"
 /usr/bin/git clone https://github.com/IndustryBestPractice/respounder.git
 # Still need to unzip the package here....
 logger "Installing Go"
-apt-get install -y golang-go || respounder_error="TRUE"
+/usr/bin/apt-get install -y golang-go=2:1.7~5 || respounder_error="TRUE"
 logger "Building respounder"
 go build -o $install_path/respounder/respounder $install_path/respounder/respounder.go || respounder_error="TRUE"
 
