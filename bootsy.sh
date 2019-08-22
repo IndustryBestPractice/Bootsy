@@ -17,6 +17,21 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+# Adding input for a silent parameter so we don't bother the user if they want to run this quietly
+for param in $@; do
+	if [ $param == "--silent" ]; then
+		logger "Silent switch passed"
+		silent_param="TRUE"
+	else
+		silent_param="FALSE"
+	fi
+done
+
+if [ -z $silent_param ]; then
+	echo "No silent switch passed, will ask for user input"
+	silent_param="FALSE"
+fi
+
 # Recommended software version info
 recommended_release="9.9"
 recommended_kernel="4.9.0-9-686"
@@ -121,31 +136,38 @@ if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "r
 fi
 
 # Verify it is a version we're expecting
-if [ "$python_version" == "$recommended_python_version" ]; then
-	logger "Python3 version ok!"
-else
-	logger "We detected Python3 version $python_version!"
-	logger "Our recommended version is $recommended_python_version, and is what this was tested on."
-	logger "You may choose to continue or you can exit and install the recommended version of Python3 now, and set it to the default instance."
-	while true; do
-		read -p "Do you want to continue? " yn
-		case $yn in
-			[Yy]* ) /bin/echo "Continuing with script!"; break;;
-			[Nn]* ) exit;;
-			* ) /bin/echo "Please enter either [Y/y] or [N/n].";;
-		esac
-	done
+if [ $silent_param != "TRUE" ]; then
+	if [ "$python_version" == "$recommended_python_version" ]; then
+		logger "Python3 version ok!"
+	else
+		logger "We detected Python3 version $python_version!"
+		logger "Our recommended version is $recommended_python_version, and is what this was tested on."
+		logger "You may choose to continue or you can exit and install the recommended version of Python3 now, and set it to the default instance."
+		while true; do
+			read -p "Do you want to continue? " yn
+			case $yn in
+				[Yy]* ) /bin/echo "Continuing with script!"; break;;
+				[Nn]* ) exit;;
+				* ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+			esac
+		done
+	fi
 fi
 
 # Now that everything is installed as expected, we need to prompt for the path to the IP_LIST file.
-logger "Please enter an accessible local or network path containing the IP CSV list file."
-logger "The format of the CSV must be:"
-logger "	ip,mask,gateway,vlanid"
-logger "	10.0.0.2,255.255.255.0,10.0.0.1,10"
-logger "	etc..."
-logger "Press enter to use default path of $start_dir/ipList.csv"
-#/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
-read -p "Enter the CSV file path and press [ENTER]: " csv_path
+if [ $silent_param == "FALSE" ]; then
+	logger "Please enter an accessible local or network path containing the IP CSV list file."
+	logger "The format of the CSV must be:"
+	logger "	ip,mask,gateway,vlanid"
+	logger "	10.0.0.2,255.255.255.0,10.0.0.1,10"
+	logger "	etc..."
+	logger "Press enter to use default path of $start_dir/ipList.csv"
+	#/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
+	read -p "Enter the CSV file path and press [ENTER]: " csv_path
+else
+	# Making var empty as wee do a check for it below
+	csv_path=""
+fi
 
 # Now validate we can see the file
 
