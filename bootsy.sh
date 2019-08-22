@@ -17,10 +17,26 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Set install path
-start_dir=`/bin/echo $PWD`
-install_path=/bootsy
+# Recommended software version info
+recommended_release="9.9"
+recommended_kernel="4.9.0-9-686"
 recommended_python_version="3.5.3"
+
+# Getting release version
+release=`/usr/bin/lsb_release -a | grep Release | cut -d ":" -f 2 | awk '{$1=$1};1'`
+logger "Current release version: $release"
+# Getting kernel version
+kernel=`uname -r`
+logger "Detected kernel version: $kernel"
+# Getting PWD
+start_dir=`/bin/echo $PWD`
+logger "Detected start_dir: $start_dir"
+# Getting install path
+install_path=/bootsy
+logger "Detected install path: $install_path"
+# Getting python version
+python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
+logger "Detected python version: $python_version"
 
 if [ ! -d "$install_path" ]; then
 	logger "Creating folder $install_path"
@@ -103,10 +119,6 @@ if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "r
 	error "Errors occured installing respounder, artillery or RockYou! Exiting!"
 	exit
 fi
-
-# Get python version
-logger "Getting python version..."
-python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
 
 # Verify it is a version we're expecting
 if [ "$python_version" == "$recommended_python_version" ]; then
