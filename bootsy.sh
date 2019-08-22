@@ -147,7 +147,7 @@ else
 fi
 
 # Now we copy the created network files in place
-/bin/cp "$start_dir/ips/*" "/etc/network/interfaces.d"
+/bin/cp $start_dir/ips/* /etc/network/interfaces.d/
 # Now we start each of the interfaces
 for IFACE in $(ls /etc/network/interfaces.d/*-*)
 do
