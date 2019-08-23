@@ -1,5 +1,27 @@
 #!/bin/bash
 
+# ================================== #
+# =========STATIC VARIABLES========= #
+# ================================== #
+# Recommended software version info
+recommended_release="9.9"
+recommended_kernel="4.9.0-9-686"
+recommended_python_version="3.5.3"
+
+# ================================== #
+# ========DYNAMIC VARIABLES========= #
+# ================================== #
+# Getting release version
+release=`/usr/bin/lsb_release -a 2>/dev/null | grep Release | cut -d ":" -f 2 | awk '{$1=$1};1'`
+# Getting kernel version
+kernel=`uname -r`
+# Getting PWD
+start_dir=`/bin/echo $PWD`
+# Getting install path
+install_path=/bootsy
+# Getting python version
+python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
+
 function logger {
 	GREEN='\033[0;32m'
 	NC='\033[0m' # No Color
@@ -32,23 +54,12 @@ fi
 usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
 
 where (Note: All switches are optional and you will be prompted for those you don't specify):
-	-h/help         |  Display this help message
-	-i/install_path |  Install path
-	-s/silent       |  Silent switch. Don't prompt for validation of versions
-	-c/iplist       |  IPList.csv file path
-	-w/wordlist     |  Wordlist file path (adding this option stops the download of rockyou)
-	-l/syslog       |  Syslog config file path (leave this option blank to load our default config)"
-
-# Getting release version
-release=`/usr/bin/lsb_release -a 2>/dev/null | grep Release | cut -d ":" -f 2 | awk '{$1=$1};1'`
-# Getting kernel version
-kernel=`uname -r`
-# Getting PWD
-start_dir=`/bin/echo $PWD`
-# Getting install path
-install_path=/bootsy
-# Getting python version
-python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
+	-h  Display this help message
+	-i  Install path
+	-s  Silent switch. Don't prompt for validation of versions
+	-c  IPList.csv file path
+	-w  Wordlist file path (adding this option stops the download of rockyou)
+	-l  Syslog config file path (leave this option blank to load our default config)"
 
 # Adding input for a silent parameter so we don't bother the user if they want to run this quietly
 # Parameters are added using double dashes. EX) --help
@@ -69,26 +80,26 @@ silent_param="FALSE"
 while getopts ":hsi:c:w:l:" opt
 do
 	case "${opt}" in
-		h | help ) info "$usage"
+		h ) info "$usage"
 		    exit 0
 		    ;;
-		s | silent ) silent_param="TRUE"
+		s ) silent_param="TRUE"
 		    ;;
-		i | install_path ) install_path="$OPTARG"
+		i ) install_path="$OPTARG"
 		    ;;
-		c | iplist ) ipList_path="$OPTARG"
+		c ) ipList_path="$OPTARG"
 		    if [ ! -f "$ipList_path" ]; then
 		    	error "ipList CSV not found! Will prompt user for input"
 			ipList_path=""
 		    fi
 		    ;;
-		w | wordlist ) wordlist_path="$OPTARG"
+		w ) wordlist_path="$OPTARG"
 		    if [ ! -f "$wordlist_path" ]; then
-                        error "Wordlist not found! Will prompt user for input"
+                        error "Wordlist not found! Will download rockyou from OffSec"
                         wordlist_path=""
                     fi
 		    ;;
-		l | syslog ) syslog_path="$OPTARG"
+		l ) syslog_path="$OPTARG"
 		    if [ ! -f "$syslog_path" ]; then
                         error "Syslog config not found! Will prompt user for input"
                         syslog_path=""
@@ -116,12 +127,7 @@ shift $((OPTIND-1))
 
 #exit
 
-# Recommended software version info
-recommended_release="9.9"
-recommended_kernel="4.9.0-9-686"
-recommended_python_version="3.5.3"
-
-logger "Current release version: $release"
+logger "Detected release version: $release"
 logger "Detected kernel version: $kernel"
 logger "Detected start_dir: $start_dir"
 logger "Detected install path: $install_path"
@@ -171,18 +177,20 @@ go build -o $install_path/respounder/respounder $install_path/respounder/respoun
 
 logger "Downloading artillery"
 /usr/bin/git clone https://github.com/IndustryBestPractice/artillery.git
+
 if [ -z "$wordlist_path" ]; then
 	logger "Downloading rockyou"
 	/usr/bin/wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
 fi
 
 if [ ! -d "$install_path/respounder" ]; then
-	error "Path variable is: $install_path/respounder"
+	error "Unable to find Respounder install at: $install_path/respounder"
 	error "Error installing respounder!"
 	respounder_error="TRUE"
 fi
 
 if [ ! -d "$install_path/artillery" ]; then
+	error "Unable to find artillery install at: $install_path/artillery"
 	error "Error installing artillery!"
 	artillery_error="TRUE"
 fi
@@ -225,9 +233,9 @@ if [ $silent_param == "FALSE" ]; then
 	if [ "$python_version" == "$recommended_python_version" ]; then
 		logger "Python3 version ok!"
 	else
-		logger "We detected Python3 version $python_version!"
-		logger "Our recommended version is $recommended_python_version, and is what this was tested on."
-		logger "You may choose to continue or you can exit and install the recommended version of Python3 now, and set it to the default instance."
+		warn "We detected Python3 version $python_version!"
+		warn "Our recommended version is $recommended_python_version, and is what this was tested on."
+		warn "You may choose to continue or you can exit and install the recommended version of Python3 now, and set it to the default instance."
 		while true; do
 			read -p "Do you want to continue? " yn
 			case $yn in
@@ -240,9 +248,9 @@ if [ $silent_param == "FALSE" ]; then
         if [ "$release" == "$recommended_release" ]; then
                 logger "OS Release version ok!"
         else
-                logger "We detected OS Release version $release!"
-                logger "Our recommended version is $recommended_release, and is what this was tested on."
-                logger "You may choose to continue or you can exit and install the recommended version of Linux now."
+                warn "We detected OS Release version $release!"
+                warn "Our recommended version is $recommended_release, and is what this was tested on."
+                warn "You may choose to continue or you can exit and install the recommended version of Linux now."
                 while true; do
                         read -p "Do you want to continue? " yn
                         case $yn in
@@ -255,9 +263,9 @@ if [ $silent_param == "FALSE" ]; then
         if [ "$kernel" == "$recommended_kernel" ]; then
                 logger "OS kernel version ok!"
         else
-                logger "We detected OS kernel version $kernel!"
-                logger "Our recommended version is $recommended_kernel, and is what this was tested on."
-                logger "You may choose to continue or you can exit and install the recommended kernel now."
+                warn "We detected OS kernel version $kernel!"
+                warn "Our recommended version is $recommended_kernel, and is what this was tested on."
+                warn "You may choose to continue or you can exit and install the recommended kernel now."
                 while true; do
                         read -p "Do you want to continue? " yn
                         case $yn in
@@ -269,21 +277,21 @@ if [ $silent_param == "FALSE" ]; then
         fi
 else
 	logger "Detected python version is $python_version."
-	logger "Recommended python version is $recommended_python_version."
+	warn "Recommended python version is $recommended_python_version."
 	logger "Detected release version is $release."
-	logger "Recommended release version is $recommended_release."
+	warn "Recommended release version is $recommended_release."
 	logger "Detected kernel version is $kernel."
-	logger "Recommended kernel version is $recommended_kernel."
+	warn "Recommended kernel version is $recommended_kernel."
 fi
 
 # Now that everything is installed as expected, we need to prompt for the path to the IP_LIST file.
 if [ $silent_param == "FALSE" ]; then
 	if [ -z $ipList_path ]; then
 		logger "Please enter an accessible local or network path containing the IP CSV list file."
-		logger "The format of the CSV must be:"
-		logger "	ip,mask,gateway,vlanid"
-		logger "	10.0.0.2,255.255.255.0,10.0.0.1,10"
-		logger "	etc..."
+		info "The format of the CSV must be:"
+		info "	ip,mask,gateway,vlanid"
+		info "	10.0.0.2,255.255.255.0,10.0.0.1,10"
+		info "	etc..."
 		logger "Press enter to use default path of $start_dir/ipList.csv"
 		#/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
 		read -p "Enter the CSV file path and press [ENTER]: " csv_path
@@ -302,7 +310,7 @@ fi
 # Now validate we can see the file
 
 if [ -z "$csv_path" ]; then
-	logger "Default path chosen!"
+	logger "Default path of $start_dir/ipList.csv chosen!"
 	csv_path="$start_dir/ipList.csv"
 fi
 
@@ -313,6 +321,12 @@ if [ ! -f "$csv_path" ]; then
 else
 	logger "Executing python network interface setup."
 	cd $start_dir
+	#if [ ! -f "$start_dir/buildIPs.py" ]; then
+	#	error "Cannot file python build file at $start_dir/buildIPs.py! Exiting
+	#	exit 1
+	#else
+	#	/usr/bin/python3 "$start_dir/buildIPs.py" "$csv_path"
+	#fi
 	/usr/bin/python3 "$start_dir/buildIPs.py" "$csv_path"
 fi
 
@@ -321,6 +335,7 @@ for MYFILE in $(ls $start_dir/ips/*)
 do
 	filename=`/bin/echo $MYFILE | /usr/bin/rev | /usr/bin/cut -d / -f 1 | /usr/bin/rev`
 	logger "Copying $filename to /etc/network/interfaces.d"
+	#/bin/cp "$start_dir/ips/$filename" "/etc/network/interfaces.d/$filename"
 done
 /bin/cp $start_dir/ips/* /etc/network/interfaces.d/
 # Now we start each of the interfaces
