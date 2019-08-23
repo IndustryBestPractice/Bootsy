@@ -15,7 +15,7 @@ function error {
 function warn {
 	YELLOW='\033[1;33m'
 	NC='\033[0m' # No Color
-	/bin/echo -e "${YELLOW}[]${NC}$1"
+	/bin/echo -e "${YELLOW}[*]${NC}$1"
 }
 
 function info {
@@ -66,31 +66,32 @@ python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
 
 # Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
-while getopts ":hsicwl" opt; do
-	case ${opt} in
+while getopts ":hsi:c:w:l:" opt
+do
+	case "${opt}" in
 		h | help ) info "$usage"
 		    exit 0
 		    ;;
 		s | silent ) silent_param="TRUE"
 		    ;;
-		i | install_path ) install_path="$2"
+		i | install_path ) install_path="$OPTARG"
 		    ;;
-		c | iplist ) ipList_path="$2"
+		c | iplist ) ipList_path="$OPTARG"
 		    if [ ! -f "$ipList_path" ]; then
 		    	error "ipList CSV not found! Will prompt user for input"
-			$ipList_path=""
+			ipList_path=""
 		    fi
 		    ;;
-		w | wordlist ) wordlist_path="$2"
+		w | wordlist ) wordlist_path="$OPTARG"
 		    if [ ! -f "$wordlist_path" ]; then
                         error "Wordlist not found! Will prompt user for input"
-                        $wordlist_path=""
+                        wordlist_path=""
                     fi
 		    ;;
-		l | syslog ) syslog_path="$2"
+		l | syslog ) syslog_path="$OPTARG"
 		    if [ ! -f "$syslog_path" ]; then
                         error "Syslog config not found! Will prompt user for input"
-                        $syslog_path=""
+                        syslog_path=""
                     fi
 		    ;;
 	        \?) error "Illegal argument passed! Please see the help file!"
@@ -101,15 +102,19 @@ while getopts ":hsicwl" opt; do
 		    info "$usage"
 		    exit 1
 		    ;;
+		* ) error "Unknown parameter passed! Please see the help file!"
+		    info "$usage"
+		    exit 1
+		    ;;
 	esac
-	shift
 done
-shift $((OPTIND -1))
+shift $((OPTIND-1))
 
 # Testing wordfile argument
-/bin/echo "Wordlist given is $wordlist_path"
+#warn "Wordlist given is $wordlist_path"
+#warn "iplist given is $ipList_path"
 
-exit
+#exit
 
 # Recommended software version info
 recommended_release="9.9"
