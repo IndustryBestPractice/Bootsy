@@ -51,11 +51,6 @@ for param in $@; do
 	fi
 done
 
-if [ -z $silent_param ]; then
-	echo "No silent switch passed, will ask for user input"
-	silent_param="FALSE"
-fi
-
 # Recommended software version info
 recommended_release="9.9"
 recommended_kernel="4.9.0-9-686"
