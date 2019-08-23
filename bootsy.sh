@@ -12,6 +12,18 @@ function error {
 	/bin/echo -e "${RED}[-]${NC}$1"
 }
 
+function warn {
+	YELLOW='\033[1;33m'
+	NC='\033[0m' # No Color
+	/bin/echo -e "${YELLOW}[]${NC}$1"
+}
+
+function info {
+	BLUE='\033[0;34m'
+	NC='\033[0m' # No Color
+	/bin/echo -e "${BLUE}$1${NC}"
+}
+
 if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root" 
    exit 1
@@ -19,16 +31,16 @@ fi
 
 usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
 
-where:
-	-h  Display this help message
-	-i  Install path
-	-s  Silent switch. Don't prompt for validation of versions
-	-c  IPList.csv file path
-	-w  Wordlist file path (adding this option stops the download of rockyou)
-	-l  Syslog config file path (leave this option blank to load our default config)"
+where (Note: All switches are optional and you will be prompted for those you don't specify):
+	-h/help         |  Display this help message
+	-i/install_path |  Install path
+	-s/silent       |  Silent switch. Don't prompt for validation of versions
+	-c/iplist       |  IPList.csv file path
+	-w/wordlist     |  Wordlist file path (adding this option stops the download of rockyou)
+	-l/syslog       |  Syslog config file path (leave this option blank to load our default config)"
 
 # Getting release version
-release=`/usr/bin/lsb_release -a | grep Release | cut -d ":" -f 2 | awk '{$1=$1};1'`
+release=`/usr/bin/lsb_release -a 2>/dev/null | grep Release | cut -d ":" -f 2 | awk '{$1=$1};1'`
 # Getting kernel version
 kernel=`uname -r`
 # Getting PWD
@@ -38,50 +50,66 @@ install_path=/bootsy
 # Getting python version
 python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
 
+# Adding input for a silent parameter so we don't bother the user if they want to run this quietly
+# Parameters are added using double dashes. EX) --help
+#for param in $@; do
+#        if [ $param == "--help" ]; then
+#                info "$usage"
+#                exit 0
+#        else
+#                warn "Illegal parameter passed! Please see the help file!"
+#                info "$usage"
+#                exit 1
+#        fi
+#done
+
+
 # Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
 while getopts ":hsicwl" opt; do
 	case ${opt} in
-		h ) echo "$usage"
+		h | help ) info "$usage"
 		    exit 0
 		    ;;
-		s ) silent_param="TRUE"
+		s | silent ) silent_param="TRUE"
 		    ;;
-		i ) install_path="$OPTARG"
+		i | install_path ) install_path="$2"
 		    ;;
-		c ) ipList_path="$OPTARG"
+		c | iplist ) ipList_path="$2"
 		    if [ ! -f "$ipList_path" ]; then
 		    	error "ipList CSV not found! Will prompt user for input"
 			$ipList_path=""
 		    fi
 		    ;;
-		w ) wordlist_path="$OPTARG"
+		w | wordlist ) wordlist_path="$2"
 		    if [ ! -f "$wordlist_path" ]; then
-                        error "wordlist not found! Will prompt user for input"
+                        error "Wordlist not found! Will prompt user for input"
                         $wordlist_path=""
                     fi
 		    ;;
-		l ) syslog_path="$OPTARG"
+		l | syslog ) syslog_path="$2"
 		    if [ ! -f "$syslog_path" ]; then
-                        error "syslog config not found! Will prompt user for input"
+                        error "Syslog config not found! Will prompt user for input"
                         $syslog_path=""
                     fi
 		    ;;
+	        \?) error "Illegal argument passed! Please see the help file!"
+		    info "$usage"
+		    exit 1
+		    ;;
+		: ) warn "Invalid option: $OPTARG requires an argument" 1>&2
+		    info "$usage"
+		    exit 1
+		    ;;
 	esac
+	shift
 done
+shift $((OPTIND -1))
 
-# Adding input for a silent parameter so we don't bother the user if they want to run this quietly
-# Parameters are added using double dashes. EX) --help
-for param in $@; do
-	if [ $param == "--help" ]; then
-		echo "$usage"
-		exit 0
-	else
-		echo "Illegal parameter passed! Please see the help file!"
-		echo "$usage"
-		exit 1
-	fi
-done
+# Testing wordfile argument
+/bin/echo "Wordlist given is $wordlist_path"
+
+exit
 
 # Recommended software version info
 recommended_release="9.9"
