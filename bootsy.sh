@@ -17,13 +17,37 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+usage="$(basename "$0") [-h] [-s] [-i /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
+
+where:
+	-h  Display this help message
+	-s  Silent switch. Don't prompt for validation of versions
+	-i  IPList.csv file path
+	-w  Wordlist file path (adding this option stops the download of rockyou)
+	-l  Syslog config file path (leave this option blank to load our default config)"
+
+silent_param="FALSE"
+while getopts ":hsiwl" opt; do
+	case ${opt} in
+		h ) echo "$usage"
+		    exit
+		    ;;
+		s ) silent_param="TRUE"
+		    ;;
+		i ) ipList_path="$OPTARG"
+		    ;;
+		w ) wordlist_path="$OPTARG"
+		    ;;
+		l ) syslog_path="$OPTARG"
+		    ;;
+	esac
+done
+
 # Adding input for a silent parameter so we don't bother the user if they want to run this quietly
 for param in $@; do
-	if [ $param == "--silent" ]; then
-		logger "Silent switch passed"
-		silent_param="TRUE"
-	else
-		silent_param="FALSE"
+	if [ $param == "--help" ]; then
+		echo "$usage"
+		exit
 	fi
 done
 
