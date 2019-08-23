@@ -17,37 +17,69 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-usage="$(basename "$0") [-h] [-s] [-i /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
+usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
 
 where:
 	-h  Display this help message
+	-i  Install path
 	-s  Silent switch. Don't prompt for validation of versions
-	-i  IPList.csv file path
+	-c  IPList.csv file path
 	-w  Wordlist file path (adding this option stops the download of rockyou)
 	-l  Syslog config file path (leave this option blank to load our default config)"
 
+# Getting release version
+release=`/usr/bin/lsb_release -a | grep Release | cut -d ":" -f 2 | awk '{$1=$1};1'`
+# Getting kernel version
+kernel=`uname -r`
+# Getting PWD
+start_dir=`/bin/echo $PWD`
+# Getting install path
+install_path=/bootsy
+# Getting python version
+python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
+
+# Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
-while getopts ":hsiwl" opt; do
+while getopts ":hsicwl" opt; do
 	case ${opt} in
 		h ) echo "$usage"
-		    exit
+		    exit 0
 		    ;;
 		s ) silent_param="TRUE"
 		    ;;
-		i ) ipList_path="$OPTARG"
+		i ) install_path="$OPTARG"
+		    ;;
+		c ) ipList_path="$OPTARG"
+		    if [ ! -f "$ipList_path" ]; then
+		    	error "ipList CSV not found! Will prompt user for input"
+			$ipList_path=""
+		    fi
 		    ;;
 		w ) wordlist_path="$OPTARG"
+		    if [ ! -f "$wordlist_path" ]; then
+                        error "wordlist not found! Will prompt user for input"
+                        $wordlist_path=""
+                    fi
 		    ;;
 		l ) syslog_path="$OPTARG"
+		    if [ ! -f "$syslog_path" ]; then
+                        error "syslog config not found! Will prompt user for input"
+                        $syslog_path=""
+                    fi
 		    ;;
 	esac
 done
 
 # Adding input for a silent parameter so we don't bother the user if they want to run this quietly
+# Parameters are added using double dashes. EX) --help
 for param in $@; do
 	if [ $param == "--help" ]; then
 		echo "$usage"
-		exit
+		exit 0
+	else
+		echo "Illegal parameter passed! Please see the help file!"
+		echo "$usage"
+		exit 1
 	fi
 done
 
@@ -56,20 +88,10 @@ recommended_release="9.9"
 recommended_kernel="4.9.0-9-686"
 recommended_python_version="3.5.3"
 
-# Getting release version
-release=`/usr/bin/lsb_release -a | grep Release | cut -d ":" -f 2 | awk '{$1=$1};1'`
 logger "Current release version: $release"
-# Getting kernel version
-kernel=`uname -r`
 logger "Detected kernel version: $kernel"
-# Getting PWD
-start_dir=`/bin/echo $PWD`
 logger "Detected start_dir: $start_dir"
-# Getting install path
-install_path=/bootsy
 logger "Detected install path: $install_path"
-# Getting python version
-python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
 logger "Detected python version: $python_version"
 
 if [ ! -d "$install_path" ]; then
@@ -116,8 +138,10 @@ go build -o $install_path/respounder/respounder $install_path/respounder/respoun
 
 logger "Downloading artillery"
 /usr/bin/git clone https://github.com/IndustryBestPractice/artillery.git
-logger "Downloading rockyou"
-/usr/bin/wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
+if [ -z "$wordlist_path" ]; then
+	logger "Downloading rockyou"
+	/usr/bin/wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
+fi
 
 if [ ! -d "$install_path/respounder" ]; then
 	error "Path variable is: $install_path/respounder"
@@ -130,22 +154,31 @@ if [ ! -d "$install_path/artillery" ]; then
 	artillery_error="TRUE"
 fi
 
-if [ ! -f "$install_path/rockyou.txt.gz" ]; then
-	error "Error downloading rockyou!"
-	rockyou_error="TRUE"
+if [ -z "$wordlist_path" ]; then
+	if [ ! -f "$install_path/rockyou.txt.gz" ]; then
+		error "Error downloading rockyou!"
+		rockyou_error="TRUE"
+	else
+		logger "Moving rockyou.txt.gz to $start_dir"
+		/bin/mv rockyou.txt.gz $start_dir
+		logger "Unzipping rockyou..."
+		/bin/gunzip "$start_dir/rockyou.txt.gz"
+		logger "Moving $start_dir/rockyou.txt to $start_dir/words"
+		/bin/mv "$start_dir/rockyou.txt" "$start_dir/words"
+		# Removing non UTF8 characters
+		logger "Removing non UTF-8 characters from words >> words2"
+		/usr/bin/iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
+		logger "Deleting $start_dir/words"
+		/bin/rm "$start_dir/words"
+		logger "Renaming $start_dir/words2 to $start_dir/words"
+		/bin/mv "$start_dir/words2" "$start_dir/words"
+	fi
 else
-	logger "Moving rockyou.txt.gz to $start_dir"
-	/bin/mv rockyou.txt.gz $start_dir
-	logger "Unzipping rockyou..."
-	/bin/gunzip "$start_dir/rockyou.txt.gz"
-	logger "Moving $start_dir/rockyou.txt to $start_dir/words"
-	/bin/mv "$start_dir/rockyou.txt" "$start_dir/words"
-	# Removing non UTF8 characters
-	logger "Removing non UTF-8 characters from words >> words2"
-	/usr/bin/iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
-	logger "Deleting $start_dir/words"
-	/bin/rm "$start_dir/words"
-	logger "Renaming $start_dir/words2 $start_dir/words"
+	logger "Removing non UTF-8 characters from $wordlist_path >> words2"
+	/usr/bin/iconv -f utf-8 -t utf-8 -c "$wordlist_path" >> "$start_dir/words2"
+	logger "Deleting $wordlist_path"
+	/bin/rm "$wordlist_path"
+	logger "Renaming $start_dir/words to $start_dir/words"
 	/bin/mv "$start_dir/words2" "$start_dir/words"
 fi
 
@@ -155,7 +188,7 @@ if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "r
 fi
 
 # Verify it is a version we're expecting
-if [ $silent_param != "TRUE" ]; then
+if [ $silent_param == "FALSE" ]; then
 	if [ "$python_version" == "$recommended_python_version" ]; then
 		logger "Python3 version ok!"
 	else
@@ -171,21 +204,66 @@ if [ $silent_param != "TRUE" ]; then
 			esac
 		done
 	fi
+        if [ "$release" == "$recommended_release" ]; then
+                logger "OS Release version ok!"
+        else
+                logger "We detected OS Release version $release!"
+                logger "Our recommended version is $recommended_release, and is what this was tested on."
+                logger "You may choose to continue or you can exit and install the recommended version of Linux now."
+                while true; do
+                        read -p "Do you want to continue? " yn
+                        case $yn in
+                                [Yy]* ) /bin/echo "Continuing with script!"; break;;
+                                [Nn]* ) exit;;
+                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+                        esac
+                done
+        fi
+        if [ "$kernel" == "$recommended_kernel" ]; then
+                logger "OS kernel version ok!"
+        else
+                logger "We detected OS kernel version $kernel!"
+                logger "Our recommended version is $recommended_kernel, and is what this was tested on."
+                logger "You may choose to continue or you can exit and install the recommended kernel now."
+                while true; do
+                        read -p "Do you want to continue? " yn
+                        case $yn in
+                                [Yy]* ) /bin/echo "Continuing with script!"; break;;
+                                [Nn]* ) exit;;
+                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+                        esac
+                done
+        fi
+else
+	logger "Detected python version is $python_version."
+	logger "Recommended python version is $recommended_python_version."
+	logger "Detected release version is $release."
+	logger "Recommended release version is $recommended_release."
+	logger "Detected kernel version is $kernel."
+	logger "Recommended kernel version is $recommended_kernel."
 fi
 
 # Now that everything is installed as expected, we need to prompt for the path to the IP_LIST file.
 if [ $silent_param == "FALSE" ]; then
-	logger "Please enter an accessible local or network path containing the IP CSV list file."
-	logger "The format of the CSV must be:"
-	logger "	ip,mask,gateway,vlanid"
-	logger "	10.0.0.2,255.255.255.0,10.0.0.1,10"
-	logger "	etc..."
-	logger "Press enter to use default path of $start_dir/ipList.csv"
-	#/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
-	read -p "Enter the CSV file path and press [ENTER]: " csv_path
+	if [ -z $ipList_path ]; then
+		logger "Please enter an accessible local or network path containing the IP CSV list file."
+		logger "The format of the CSV must be:"
+		logger "	ip,mask,gateway,vlanid"
+		logger "	10.0.0.2,255.255.255.0,10.0.0.1,10"
+		logger "	etc..."
+		logger "Press enter to use default path of $start_dir/ipList.csv"
+		#/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
+		read -p "Enter the CSV file path and press [ENTER]: " csv_path
+	else
+		csv_path="$ipList_path"
+	fi
 else
-	# Making var empty as wee do a check for it below
-	csv_path=""
+	if [ -z $ipList_path ]; then
+		# Making var empty as we do a check for it below
+		csv_path=""
+	else
+		csv_path="$ipList_path"
+	fi
 fi
 
 # Now validate we can see the file
@@ -198,7 +276,7 @@ fi
 if [ ! -f "$csv_path" ]; then
 	error "File $csv_path appears to either not exist or is not reachable."
 	error "Exiting setup!"
-	exit
+	exit 1
 else
 	logger "Executing python network interface setup."
 	cd $start_dir
@@ -206,6 +284,11 @@ else
 fi
 
 # Now we copy the created network files in place
+for MYFILE in $(ls $start_dir/ips/*)
+do
+	filename=`/bin/echo $MYFILE | /usr/bin/rev | /usr/bin/cut -d / -f 1 | /usr/bin/rev`
+	logger "Copying $filename to /etc/network/interfaces.d"
+done
 /bin/cp $start_dir/ips/* /etc/network/interfaces.d/
 # Now we start each of the interfaces
 for IFACE in $(ls /etc/network/interfaces.d/*-*)
