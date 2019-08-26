@@ -59,7 +59,8 @@ where (Note: All switches are optional and you will be prompted for those you do
 	-s  Silent switch. Don't prompt for validation of versions
 	-c  IPList.csv file path
 	-w  Wordlist file path (adding this option stops the download of rockyou)
-	-l  Syslog config file path (leave this option blank to load our default config)"
+	-l  Syslog config file path (leave this option blank to load our default config)
+	-u  Runs just the security portion of the script"
 
 # Adding input for a silent parameter so we don't bother the user if they want to run this quietly
 # Parameters are added using double dashes. EX) --help
@@ -77,7 +78,8 @@ where (Note: All switches are optional and you will be prompted for those you do
 
 # Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
-while getopts ":hsi:c:w:l:" opt
+security_var="FALSE"
+while getopts ":hsi:c:w:l:u" opt
 do
 	case "${opt}" in
 		h ) info "$usage"
@@ -105,6 +107,8 @@ do
                         syslog_path=""
                     fi
 		    ;;
+		u ) security_var="TRUE"
+		    ;;
 	        \?) error "Illegal argument passed! Please see the help file!"
 		    info "$usage"
 		    exit 1
@@ -126,7 +130,7 @@ shift $((OPTIND-1))
 #warn "iplist given is $ipList_path"
 
 #exit
-
+function bootsy () {
 logger "Detected release version: $release"
 logger "Detected kernel version: $kernel"
 logger "Detected start_dir: $start_dir"
@@ -350,4 +354,81 @@ do
 	logger "Starting interface adapter: $IFACE2"
 	#/sbin/ifup $IFACE2
 done
+}
 
+# =========================================
+# ========== INSTALLING APACHE 2 ==========
+# =========================================
+
+#/usr/bin/apt-get install -y apache2=2:1.7~5 || apache2_error="TRUE"
+
+function security () {
+logger "Got security var working"
+exit
+# =========================================
+# ========== SECURITY HARDENING ===========
+# =========================================
+
+# First we use ssh-keygen to generate public\private key pair
+logger "Securing SSH..."
+if  [ $silent_param == "TRUE" ]; then
+	# don't prompt for passphrase
+	keyout=`/usr/bin/ssh-keygen -f ./bootsy_rsa -t rsa -b 4096 -N ''`
+else
+	# prompt for passphrase
+	read -s -p "Enter your SSH key passphrase" pswd
+	keyout=`/usr/bin/ssh-keygen -f ./bootsy_rsa -t rsa -b 4096 -N '$pswd'`
+fi
+
+# Now we wait for the user to copy the SSH Key info
+char=" "
+num_spaces=`echo $keyout | awk -F"${char}" '{print NF-1}'`
+for i in $(seq 1 $num_spaces)
+	do
+		line=`echo $keyout | cut -d " " -f $i`
+		#echo "line is: $line"
+		if [[ $line == *"SHA256"* ]]; then
+			keyfingerprint=$line
+		fi
+	done
+logger "Key Fingerprint: $keyfingerprint"
+logger "Public Key: $start_dir/bootsy_rsa.pub"
+logger "Private Key: $start_dir/bootsy_rsa"
+
+read -p "Press any key to continue when ready..." anykey
+
+
+# Now lets add a limited permissions user
+if [ $(id -u) -eq 0 ]; then
+	read -p "Enter username: " username
+	read -s -p "Enter password: " password
+	/bin/egrep "^$username" /etc/passwd >/dev/null
+	if [ $? -eq 0 ]; then
+		warn "$username exists!"
+		return 1
+	else
+		pass=$(/usr/bin/perl -e 'print crypt($ARGV[0], "password")' $password)
+		/usr/sbin/useradd -m -p $pass $username
+		[ $? -eq 0 ] && logger "User has been added to system!" || error "Failed to add a user!"; return 1
+	fi
+	return 0
+else
+	error "Only root may add a user to the system"
+	exit 1
+fi
+
+# Now create an ssh director for this user:
+/bin/mkdir "/home/$username/.ssh/" -p
+/usr/bin/touch "/home/$username/.ssh/authorized_keys"
+# Now copy our SSH keys in there and re-permission them
+/bin/cat "$start_dir/bootsy_rsa.pub" >> "/home/$username/.ssh/authorized_keys"
+# Now we add the new user to the sudoers group
+/usr/sbin/usermod -aG sudo "$username"
+}
+
+# Call bootsy function
+if [ $security_var == "FALSE" ]; then
+	bootsy
+fi
+# Call security function
+security
