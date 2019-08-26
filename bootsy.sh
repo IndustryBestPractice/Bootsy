@@ -84,7 +84,7 @@ where (Note: All switches are optional and you will be prompted for those you do
 
 # Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
-security_var="FALSE"
+security_only="FALSE"
 while getopts ":hsi:c:w:l:u" opt
 do
 	case "${opt}" in
@@ -113,7 +113,7 @@ do
                         syslog_path=""
                     fi
 		    ;;
-		u ) security_var="TRUE"
+		u ) security_only="TRUE"
 		    ;;
 	        \?) error "Illegal argument passed! Please see the help file!"
 		    info "$usage"
@@ -369,72 +369,114 @@ done
 #/usr/bin/apt-get install -y apache2=2:1.7~5 || apache2_error="TRUE"
 
 function security () {
-logger "Got security var working"
-exit
-# =========================================
-# ========== SECURITY HARDENING ===========
-# =========================================
+	# =========================================
+	# ========== SECURITY HARDENING ===========
+	# =========================================
 
-# First we use ssh-keygen to generate public\private key pair
-logger "Securing SSH..."
-if  [ $silent_param == "TRUE" ]; then
-	# don't prompt for passphrase
-	keyout=`/usr/bin/ssh-keygen -f ./bootsy_rsa -t rsa -b 4096 -N ''`
-else
-	# prompt for passphrase
-	read -s -p "Enter your SSH key passphrase" pswd
-	keyout=`/usr/bin/ssh-keygen -f ./bootsy_rsa -t rsa -b 4096 -N '$pswd'`
-fi
-
-# Now we wait for the user to copy the SSH Key info
-char=" "
-num_spaces=`echo $keyout | awk -F"${char}" '{print NF-1}'`
-for i in $(seq 1 $num_spaces)
-	do
-		line=`echo $keyout | cut -d " " -f $i`
-		#echo "line is: $line"
-		if [[ $line == *"SHA256"* ]]; then
-			keyfingerprint=$line
-		fi
-	done
-logger "Key Fingerprint: $keyfingerprint"
-logger "Public Key: $start_dir/bootsy_rsa.pub"
-logger "Private Key: $start_dir/bootsy_rsa"
-
-read -p "Press any key to continue when ready..." anykey
-
-
-# Now lets add a limited permissions user
-if [ $(id -u) -eq 0 ]; then
-	read -p "Enter username: " username
-	read -s -p "Enter password: " password
-	/bin/egrep "^$username" /etc/passwd >/dev/null
-	if [ $? -eq 0 ]; then
-		warn "$username exists!"
-		return 1
+	# First we use ssh-keygen to generate public\private key pair
+	logger "Generating public\private key pair for to secure SSH..."
+	if  [ $silent_param == "TRUE" ]; then
+		# don't prompt for passphrase
+		keyout=`/usr/bin/ssh-keygen -f ./bootsy_rsa -t rsa -b 4096 -N ''`
 	else
-		pass=$(/usr/bin/perl -e 'print crypt($ARGV[0], "password")' $password)
-		/usr/sbin/useradd -m -p $pass $username
-		[ $? -eq 0 ] && logger "User has been added to system!" || error "Failed to add a user!"; return 1
+		# prompt for passphrase
+		read -s -p "Enter your SSH key passphrase: " pswd
+		/bin/echo " " # giving us a space between promptin and the next line
+		if [ -f "$start_dir/bootsy_rsa" ]; then
+			error "Deleting $start_dir/bootsy_rsa"
+			/bin/rm "$start_dir/bootsy_rsa"
+		fi
+		if [ -f "$start_dir/bootsy_rsa.pub" ]; then
+			error "Deleting $start_dir/bootsy_rsa.pub"
+			/bin/rm "$start_dir/bootsy_rsa.pub"
+		fi
+		#/bin/echo " " # giving us a space between prompting and the next line
+		logger "Generating keygen with RSA-4096, this may take a moment..."
+		keyout=`/usr/bin/ssh-keygen -f "$start_dir/bootsy_rsa" -t rsa -b 4096 -N '$pswd'`
+		logger "Generation complete"
 	fi
-	return 0
-else
-	error "Only root may add a user to the system"
-	exit 1
-fi
 
-# Now create an ssh director for this user:
-/bin/mkdir "/home/$username/.ssh/" -p
-/usr/bin/touch "/home/$username/.ssh/authorized_keys"
-# Now copy our SSH keys in there and re-permission them
-/bin/cat "$start_dir/bootsy_rsa.pub" >> "/home/$username/.ssh/authorized_keys"
-# Now we add the new user to the sudoers group
-/usr/sbin/usermod -aG sudo "$username"
+	# Now we wait for the user to copy the SSH Key info
+	char=" "
+	num_spaces=`/bin/echo $keyout | /usr/bin/awk -F"${char}" '{print NF-1}'`
+	for i in $(seq 1 $num_spaces)
+		do
+			line=`/bin/echo $keyout | /usr/bin/cut -d " " -f $i`
+			#echo "line is: $line"
+			if [[ $line == *"SHA256"* ]]; then
+				keyfingerprint=$line
+			fi
+		done
+	logger "Key Fingerprint: $keyfingerprint"
+	logger "Public Key: $start_dir/bootsy_rsa.pub"
+	logger "Private Key: $start_dir/bootsy_rsa"
+
+	read -p "Press [ENTER] to continue when ready... " anykey
+
+
+	# Now lets add a limited permissions user
+	if [ $(id -u) -eq 0 ]; then
+		read -p "Enter username: " username
+		read -s -p "Enter password: " password
+		/bin/egrep "^$username" /etc/passwd >/dev/null
+		if [ $? -eq 0 ]; then
+			warn "$username already exists!"
+			return 1
+		else
+			pass=$(/usr/bin/perl -e 'print crypt($ARGV[0], "password")' $password)
+			/bin/echo " "
+			/usr/sbin/useradd -m -p $pass $username
+			if [ $? -eq 0 ]; then
+				logger "User has been added to system!"
+			else
+				error "Failed to add a user!"
+				return 1
+			fi
+			# Now create an ssh director for this user:
+			logger "Creating /home/$username/.ssh/"
+		        /bin/mkdir "/home/$username/.ssh/" -p
+			if [ ! -f "/home/$username/.ssh/authorized_keys file" ]; then
+				logger "Creating empty /home/$username/.ssh/authorized_keys file"
+			        /usr/bin/touch "/home/$username/.ssh/authorized_keys"
+			fi
+		        # Now copy our SSH keys in there and re-permission them
+			logger "Adding $start_dir/bootsy_rsa.pub to authorized_keys file"
+		        /bin/cat "$start_dir/bootsy_rsa.pub" >> "/home/$username/.ssh/authorized_keys"
+		        # Now we add the new user to the sudoers group
+			logger "Adding $username to sudoers group"
+		        /usr/sbin/usermod -aG sudo "$username"
+		fi
+		return 0
+	else
+		error "Only root may add a user to the system"
+		exit 1
+	fi
 }
 
 # Call bootsy function
-if [ $security_var == "FALSE" ]; then
+if [ $security_only == "FALSE" ]; then
 	bootsy
 fi
 # Call security function
-security
+security_count=1
+until [ $security_count -gt 3 ] || [[ $security_pass == "0" ]]
+do
+	#/bin/echo "Security count: $security_count"
+	security
+	security_pass=$?
+	if [[ $security_pass == "0" ]]; then
+		logger "Worked! Got a $? return code!"
+		security_count=4 # Can't seem to get the "or" in the until working, so we can cheat a little...
+	else
+		error "Failed! Got a return code of $?"
+	fi
+	((security_count++))
+	if [ $security_count -gt 3 ]; then
+		security_pass=0
+	else
+		warn "Running security function again..."
+		security
+	fi
+done
+
+logger "Done with security section..."
