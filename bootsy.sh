@@ -56,7 +56,13 @@ usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-
 where (Note: All switches are optional and you will be prompted for those you don't specify):
 	-h  Display this help message
 	-i  Install path
-	-s  Silent switch. Don't prompt for validation of versions
+	-s  Silent switch. Don't prompt for validation of versions. See our github for example files.
+		Silent switch expects the following to exist:
+			$start_dir/ipList.csv
+			$start_dir/syslog_config
+		Silent switch does the following:
+			> Downloads rockyou for the wordlist
+			> Creates folder $start_dir if it doesn't already exist
 	-c  IPList.csv file path
 	-w  Wordlist file path (adding this option stops the download of rockyou)
 	-l  Syslog config file path (leave this option blank to load our default config)
