@@ -150,6 +150,16 @@ fi
 
 cd "$install_path"
 
+if [ -f "/etc/rsyslog.d/99-bootsy-mail.conf" ]; then
+	error "Removing old /etc/rsyslog.d/99-bootsy-mail.conf config file"
+	/bin/rm "/etc/rsyslog.d/99-bootsy-mail.conf"
+fi
+
+if [ -f "/etc/rsyslog.d/98-bootsy-syslog.conf" ]; then
+	error "Removing old /etc/rsyslog.d/98-bootsy-syslog.conf config file"
+	/bin/rm "/etc/rsyslog.d/98-bootsy-syslog.conf"
+fi
+
 if [ -d "$install_path/respounder" ]; then
 	error "Removing old folder $install_path/respounder"
 	/bin/rm "$install_path/respounder" -rf
@@ -237,6 +247,118 @@ if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "r
 	error "Errors occured installing respounder, artillery or RockYou! Exiting!"
 	exit
 fi
+
+# Prompt user for email, syslog, or both
+# email: need to ask smtp server name, from_address, to_address
+# syslog: need to ask remote host, port, UDP\TCP?
+# The 98/99 files go in: /etc/rsyslog.d
+if [ $silent_param == "FALSE" ]; then
+	# Here we prompt them for what they want
+	#logger "Would you like to configure email alerts for bootsy detections?"
+	emailcomplete="FALSE"
+        while [ $emailcomplete == "FALSE" ]; do
+		logger "Would you like to configure email alerts for bootsy detections?"
+        	read -p "[Y/N]? " email
+                case $email in
+        		[Yy]* ) /bin/echo "Starting email config!"; emailconfig="TRUE";;
+                        [Nn]* ) break;;
+                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+		esac
+
+		while true; do
+			if [ $emailconfig == "TRUE" ]; then
+				read -p "What is the SMTP server name/ip? " smtp_server_name
+				read -p "What is the [FROM] address? " smtp_from_address
+				read -p "What is the [TO] address? " smtp_to_address
+			fi
+
+			logger "Are these options correct?"
+			warn "SMTP Server: $smtp_server_name"
+			warn "SMTP [FROM] Address: $smtp_from_address"
+			warn "SMTP [TO] Address: $smtp_to_address"
+			read -p "[Y/N]? " correct_options
+			case $correct_options in
+				[Yy]* ) /bin/echo "Continuing with script!"; emailcomplete="TRUE"; break;;
+				* ) /bin/echo "Prompting for input again!";;
+			esac
+		done
+	emailcomplete="TRUE"
+	done
+	if [ $emailcomplete == "TRUE" ]; then
+		logger "Setting up email configuration..."
+		logger "Updating smtp server name to [$smtp_server_name] in $start_dir/99-bootsy-mail.conf"
+		/bin/sed -i "s/changeserver/$smtp_server_name/g" "$start_dir/99-bootsy-mail.conf"
+		logger "Updating smtp [FROM] address to [$smtp_from_address] in $start_dir/99-bootsy-mail.conf"
+		/bin/sed -i "s/bootsy@change.local/$smtp_from_address/g" "$start_dir/99-bootsy-mail.conf"
+		logger "Updating smtp [TO] address to [$smtp_to_address] in $start_dir/99-bootsy-mail.conf"
+		/bin/sed -i "s/to@change.local/$smtp_to_address/g" "$start_dir/99-bootsy-mail.conf"
+                logger "Copying $start_dir/99-bootsy-mail.conf to /etc/rsyslog.d"
+                /bin/cp "$start_dir/99-bootsy-mail.conf" "/etc/rsyslog.d"
+	fi
+        #logger "Would you like to configure syslogging for bootsy detections?"
+	syslogcomplete="FALSE"
+        while [ $syslogcomplete == "FALSE" ]; do
+		logger "Would you like to configure syslogging for bootsy detections?"
+                read -p "[Y/N]? " syslog
+                case $syslog in
+                        [Yy]* ) /bin/echo "Continuing with script!"; syslogconfig="TRUE";;
+                        [Nn]* ) break;;
+                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+                esac
+
+                while true; do
+                        if [ $syslogconfig == "TRUE" ]; then
+                                read -p "What is the SYSLOG remote host name/ip? " syslog_server_name
+                                read -p "What is the SYSLOG port? " syslog_port
+				properprotocol="FALSE"
+				while [ $properprotocol == "FALSE" ]; do
+	                                read -p "What is the SYSLOG protocol [TCP/UDP]? " syslogprotocol
+					case $syslogprotocol in
+						[TCPtcp]* ) /bin/echo "Chose TCP!"; syslog_protocol="@@"; properprotocol="TRUE";;
+						[UDPudp]* ) /bin/echo "Chose UDP!"; syslog_protocol="@"; properprotocol="TRUE";;
+						* ) /bin/echo "Enter TCP or UDP!";;
+					esac
+				done
+                        fi
+
+                        logger "Are these options correct?"
+                        warn "SYSLOG Server: $syslog_server_name"
+                        warn "SYSLOG [PORT]: $syslog_port"
+                        warn "SYSLOG [PROTOCOL]: $syslogprotocol"
+                        read -p "[Y/N]? " correct_options
+                        case $correct_options in
+                                [Yy]* ) /bin/echo "Continuing with script!"; syslogcomplete="TRUE"; break;;
+                                * ) /bin/echo "Prompting for input again!";;
+                        esac
+                done
+	syslogcomplete="TRUE"
+        done
+        if [ $syslogcomplete == "TRUE" ]; then
+                logger "Setting up syslog configuration..."
+                logger "Updating syslog server name to [$syslog_server_name] in $start_dir/98-bootsy-syslog.conf"
+                /bin/sed -i "s/changeserver/$syslog_server_name/g" "$start_dir/98-bootsy-syslog.conf"
+                logger "Updating syslog [PORT] to [$syslog_port] in $start_dir/98-bootsy-syslog.conf"
+                /bin/sed -i "s/changeport/$syslog_port/g" "$start_dir/98-bootsy-syslog.conf"
+                logger "Updating syslog [PROTOCOL] to [$syslogprotocol] in $start_dir/98-bootsy-syslog.conf"
+                /bin/sed -i "s/$syslog_server_name/$syslog_protocol$syslog_server_name/g" "$start_dir/98-bootsy-syslog.conf"
+		logger "Copying $start_dir/98-bootsy-syslog.conf to /etc/rsyslog.d"
+		/bin/cp "$start_dir/98-bootsy-syslog.conf" "/etc/rsyslog.d"
+        fi
+else
+	# Here, we do defaults, because they chose silent option
+	warn "Artillery will write to local syslog only!"
+	warn "This is particularly useless unless you plan to config this further yourself..."
+	/bin/sleep 10
+fi
+
+# MBAN TESTING
+warn "$syslog_server_name"
+warn "$syslog_port"
+warn "$syslog_protocol"
+warn "$smtp_server_name"
+warn "$smtp_from_address"
+warn "$smtp_to_address"
+exit
 
 # Verify it is a version we're expecting
 if [ $silent_param == "FALSE" ]; then
