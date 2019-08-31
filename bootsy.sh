@@ -42,6 +42,7 @@ release=`/usr/bin/lsb_release -a 2>/dev/null | grep Release | cut -d ":" -f 2 | 
 kernel=`uname -r`
 # Getting PWD
 start_dir=`/bin/echo $PWD`
+wordlist_path="$start_dir/funkList2000.txt"
 # Getting install path
 install_path=/bootsy
 # Getting python version
@@ -128,8 +129,8 @@ do
 		    ;;
 		w ) wordlist_path="$OPTARG"
 		    if [ ! -f "$wordlist_path" ]; then
-                        error "Wordlist not found! Will download rockyou from OffSec"
-                        wordlist_path=""
+                        error "User entered wordlist not found! Will try using funkList200 or download rockyou from OffSec"
+                        wordlist_path="$start_dir/funkList2000.txt"
                     fi
 		    ;;
 		l ) syslog_path="$OPTARG"
@@ -214,58 +215,67 @@ fi
 # Download stuff
 logger "Downloading respounder!"
 /usr/bin/git clone https://github.com/IndustryBestPractice/respounder.git
-# Still need to unzip the package here....
+
 logger "Installing Go"
 /usr/bin/apt-get install -y golang-go=2:1.7~5 || respounder_error="TRUE"
+
 logger "Building respounder"
 go build -o $install_path/respounder/respounder $install_path/respounder/respounder.go || respounder_error="TRUE"
 
 logger "Downloading artillery"
 /usr/bin/git clone https://github.com/IndustryBestPractice/artillery.git
 
-if [ -z "$wordlist_path" ]; then
+if [ -f "$wordlist_path" ]; then
+	error "Unable to locate $wordlist_path"
 	logger "Downloading rockyou"
 	/usr/bin/wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
-fi
 
-if [ ! -d "$install_path/respounder" ]; then
-	error "Unable to find Respounder install at: $install_path/respounder"
-	error "Error installing respounder!"
-	respounder_error="TRUE"
-fi
-
-if [ ! -d "$install_path/artillery" ]; then
-	error "Unable to find artillery install at: $install_path/artillery"
-	error "Error installing artillery!"
-	artillery_error="TRUE"
-fi
-
-if [ -z "$wordlist_path" ]; then
-	if [ ! -f "$install_path/rockyou.txt.gz" ]; then
-		error "Error downloading rockyou!"
-		rockyou_error="TRUE"
+	if [ -f "$wordlist_path" ]; then
+		if [ ! -f "$install_path/rockyou.txt.gz" ]; then
+			error "Error downloading rockyou!"
+			rockyou_error="TRUE"
+		else
+			logger "Moving rockyou.txt.gz to $start_dir"
+			/bin/mv rockyou.txt.gz $start_dir
+			logger "Unzipping rockyou..."
+			/bin/gunzip "$start_dir/rockyou.txt.gz"
+			logger "Moving $start_dir/rockyou.txt to $start_dir/words"
+			/bin/mv "$start_dir/rockyou.txt" "$start_dir/words"
+			# Removing non UTF8 characters
+			logger "Removing non UTF-8 characters from words >> words2"
+			/usr/bin/iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
+			logger "Deleting $start_dir/words"
+			/bin/rm "$start_dir/words"
+			logger "Renaming $start_dir/words2 to $start_dir/words"
+			/bin/mv "$start_dir/words2" "$start_dir/words"
+		fi
 	else
-		logger "Moving rockyou.txt.gz to $start_dir"
-		/bin/mv rockyou.txt.gz $start_dir
-		logger "Unzipping rockyou..."
-		/bin/gunzip "$start_dir/rockyou.txt.gz"
-		logger "Moving $start_dir/rockyou.txt to $start_dir/words"
-		/bin/mv "$start_dir/rockyou.txt" "$start_dir/words"
-		# Removing non UTF8 characters
-		logger "Removing non UTF-8 characters from words >> words2"
-		/usr/bin/iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
-		logger "Deleting $start_dir/words"
-		/bin/rm "$start_dir/words"
-		logger "Renaming $start_dir/words2 to $start_dir/words"
+		logger "Removing non UTF-8 characters from $wordlist_path >> words2"
+		/usr/bin/iconv -f utf-8 -t utf-8 -c "$wordlist_path" >> "$start_dir/words2"
+		logger "Deleting $wordlist_path"
+		/bin/rm "$wordlist_path"
+		logger "Renaming $start_dir/words to $start_dir/words"
 		/bin/mv "$start_dir/words2" "$start_dir/words"
 	fi
 else
 	logger "Removing non UTF-8 characters from $wordlist_path >> words2"
-	/usr/bin/iconv -f utf-8 -t utf-8 -c "$wordlist_path" >> "$start_dir/words2"
-	logger "Deleting $wordlist_path"
-	/bin/rm "$wordlist_path"
-	logger "Renaming $start_dir/words to $start_dir/words"
+        /usr/bin/iconv -f utf-8 -t utf-8 -c "$wordlist_path" >> "$start_dir/words2"
+        logger "Deleting $wordlist_path"
+        /bin/rm "$wordlist_path"
+        logger "Renaming $start_dir/words to $start_dir/words"
 	/bin/mv "$start_dir/words2" "$start_dir/words"
+fi
+
+if [ ! -d "$install_path/respounder" ]; then
+        error "Unable to find Respounder install at: $install_path/respounder"
+        error "Error installing respounder!"
+        respounder_error="TRUE"
+fi
+
+if [ ! -d "$install_path/artillery" ]; then
+        error "Unable to find artillery install at: $install_path/artillery"
+        error "Error installing artillery!"
+        artillery_error="TRUE"
 fi
 
 if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "rockyou_error" == "TRUE" ]; then
@@ -375,15 +385,6 @@ else
 	warn "This is particularly useless unless you plan to config this further yourself..."
 	/bin/sleep 10
 fi
-
-# MBAN TESTING
-warn "$syslog_server_name"
-warn "$syslog_port"
-warn "$syslog_protocol"
-warn "$smtp_server_name"
-warn "$smtp_from_address"
-warn "$smtp_to_address"
-exit
 
 # Verify it is a version we're expecting
 if [ $silent_param == "FALSE" ]; then
@@ -592,6 +593,20 @@ function security () {
 		        # Now we add the new user to the sudoers group
 			logger "Adding $username to sudoers group"
 		        /usr/sbin/usermod -aG sudo "$username"
+
+		        # ================= 
+		        # CHANGE HOSTNAME 
+		        #==================                  
+		        /bin/echo "bootsy" > /etc/hostname
+		        /bin/sed -i "s/raspberrypi/bootsy/g" "/etc/hosts"
+		        /bin/hostname
+
+		        # =======================
+		        # FORCE PASSWORD CHANGE 
+		        # =======================
+		        logger "You will have to change your password at next login"
+		        /usr/bin/chage -d 0 $username
+
 		fi
 		return 0
 	else
