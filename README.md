@@ -4,6 +4,7 @@ Bootsy Collins is a legendary bass guitar player who laid down the best bassline
 By combining Respounder (Responder detection) and Artillery (port and service spoofing) for deception, the hope is to quickly detect an attacker on the network early and without tipping them off that they have been found out.
 
 # Usage
+```
 ./bootsy.sh [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
 
 where (Note: All switches are optional and you will be prompted for those you don't specify):
@@ -22,3 +23,4 @@ where (Note: All switches are optional and you will be prompted for those you do
         -w  Wordlist file path (adding this option stops the download of rockyou)
         -l  Syslog config file path (leave this option blank to load our default config)
         -u  Runs just the security portion of the script
+```
