@@ -615,6 +615,19 @@ function security () {
 	fi
 }
 
+function start_bootsy {
+# Wait 2 minutes for all services to start because rpi and start respounder
+line="@reboot sleep 120 && $install_dir/respounder/respounder"
+(crontab -u root -l; echo "$line" ) | crontab -u root -
+# Wait 2 minutes for all services to start because rpi and start artillery
+line="@reboot sleep 120 && /usr/bin/python3 $install_dir/artillery/artillery.py"
+(crontab -u root -l; echo "$line" ) | crontab -u root -
+# Now we enable the crontab for startup
+/bin/systemctl enable cron
+# Now restart it
+/usr/bin/service cron restart
+}
+
 # Call bootsy function
 if [ $security_only == "FALSE" ]; then
 	bootsy
