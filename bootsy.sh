@@ -164,352 +164,366 @@ shift $((OPTIND-1))
 #warn "iplist given is $ipList_path"
 
 #exit
-function bootsy () {
-logger "Detected release version: $release"
-logger "Detected kernel version: $kernel"
-logger "Detected start_dir: $start_dir"
-logger "Detected install path: $install_path"
-logger "Detected python version: $python_version"
+function bootsy_check () {
+	logger "Detected release version: $release"
+	logger "Detected kernel version: $kernel"
+	logger "Detected start_dir: $start_dir"
+	logger "Detected install path: $install_path"
+	logger "Detected python version: $python_version"
 
-if [ ! -d "$install_path" ]; then
-	logger "Creating folder $install_path"
-	/bin/mkdir "$install_path"
-fi
+	/bin/echo "" #spacer
+	if [ ! -d "$install_path" ]; then
+		logger "Creating folder $install_path"
+		/bin/mkdir "$install_path"
+	fi
 
-cd "$install_path"
+	cd "$install_path"
 
-if [ -f "/etc/rsyslog.d/99-bootsy-mail.conf" ]; then
-	error "Removing old /etc/rsyslog.d/99-bootsy-mail.conf config file"
-	/bin/rm "/etc/rsyslog.d/99-bootsy-mail.conf"
-fi
+	if [ -f "/etc/rsyslog.d/99-bootsy-mail.conf" ]; then
+		error "Removing old /etc/rsyslog.d/99-bootsy-mail.conf config file"
+		/bin/rm "/etc/rsyslog.d/99-bootsy-mail.conf"
+	fi
 
-if [ -f "/etc/rsyslog.d/98-bootsy-syslog.conf" ]; then
-	error "Removing old /etc/rsyslog.d/98-bootsy-syslog.conf config file"
-	/bin/rm "/etc/rsyslog.d/98-bootsy-syslog.conf"
-fi
+	if [ -f "/etc/rsyslog.d/98-bootsy-syslog.conf" ]; then
+		error "Removing old /etc/rsyslog.d/98-bootsy-syslog.conf config file"
+		/bin/rm "/etc/rsyslog.d/98-bootsy-syslog.conf"
+	fi
 
-if [ -d "$install_path/respounder" ]; then
-	error "Removing old folder $install_path/respounder"
-	/bin/rm "$install_path/respounder" -rf
-fi
+	if [ -d "$install_path/respounder" ]; then
+		error "Removing old folder $install_path/respounder"
+		/bin/rm "$install_path/respounder" -rf
+	fi
 
-if [ -d "$install_path/artillery" ]; then
-	error "Removing old folder $install_path/artillery"
-	/bin/rm "$install_path/artillery" -rf
-fi
+	if [ -d "$install_path/artillery" ]; then
+		error "Removing old folder $install_path/artillery"
+		/bin/rm "$install_path/artillery" -rf
+	fi
 
-# Check for the rockyou.txt wordlist
-if [ -f "$install_path/rockyou.txt.gz" ]; then
-	error "Removing old rockyou wordlist from $install_path/rockyou.txt.gz"
-	/bin/rm "$install_path/rockyou.txt.gz" -rf
-fi
+	# Check for the rockyou.txt wordlist
+	if [ -f "$install_path/rockyou.txt.gz" ]; then
+		error "Removing old rockyou wordlist from $install_path/rockyou.txt.gz"
+		/bin/rm "$install_path/rockyou.txt.gz" -rf
+	fi
 
-if [ -f "$install_path/words" ]; then
-	error "Removing old words file from $install_path/words"
-	/bin/rm "$install_path/words"
-fi
+	if [ -f "$install_path/words" ]; then
+		error "Removing old words file from $install_path/words"
+		/bin/rm "$install_path/words"
+	fi
 
-if [ -f "$start_dir/words" ]; then
-	error "Removing old words file from $start_dir/words"
-	/bin/rm "$start_dir/words"
-fi
+	if [ -f "$start_dir/words" ]; then
+		error "Removing old words file from $start_dir/words"
+		/bin/rm "$start_dir/words"
+	fi
+}
 
-# Download stuff
-logger "Downloading respounder!"
-/usr/bin/git clone https://github.com/IndustryBestPractice/respounder.git
+function bootsy_download () {
+	# Download stuff
+	logger "Downloading respounder!"
+	/usr/bin/git clone https://github.com/IndustryBestPractice/respounder.git
 
-logger "Installing Go"
-/usr/bin/apt-get install -y golang-go=2:1.7~5 || respounder_error="TRUE"
+	logger "Installing Go"
+	/usr/bin/apt-get install -y golang-go=2:1.7~5 || respounder_error="TRUE"
 
-logger "Building respounder"
-go build -o $install_path/respounder/respounder $install_path/respounder/respounder.go || respounder_error="TRUE"
+	logger "Building respounder"
+	go build -o $install_path/respounder/respounder $install_path/respounder/respounder.go || respounder_error="TRUE"
 
-logger "Downloading artillery"
-/usr/bin/git clone https://github.com/IndustryBestPractice/artillery.git
+	logger "Downloading artillery"
+	/usr/bin/git clone https://github.com/IndustryBestPractice/artillery.git
 
-if [ -f "$wordlist_path" ]; then
-	error "Unable to locate $wordlist_path"
-	logger "Downloading rockyou"
-	/usr/bin/wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
+	if [ ! -f "$wordlist_path" ]; then
+		error "Unable to locate $wordlist_path"
+		logger "Downloading rockyou"
+		/usr/bin/wget https://gitlab.com/kalilinux/packages/wordlists/raw/kali/master/rockyou.txt.gz
 
-	if [ -f "$wordlist_path" ]; then
-		if [ ! -f "$install_path/rockyou.txt.gz" ]; then
-			error "Error downloading rockyou!"
-			rockyou_error="TRUE"
+		if [ ! -f "$wordlist_path" ]; then
+			if [ ! -f "$install_path/rockyou.txt.gz" ]; then
+				error "Error downloading rockyou!"
+				rockyou_error="TRUE"
+			else
+				logger "Moving rockyou.txt.gz to $start_dir"
+				/bin/mv rockyou.txt.gz $start_dir
+				logger "Unzipping rockyou..."
+				/bin/gunzip "$start_dir/rockyou.txt.gz"
+				logger "Moving $start_dir/rockyou.txt to $start_dir/words"
+				/bin/mv "$start_dir/rockyou.txt" "$start_dir/words"
+				# Removing non UTF8 characters
+				logger "Removing non UTF-8 characters from words >> words2"
+				/usr/bin/iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
+				logger "Deleting $start_dir/words"
+				/bin/rm "$start_dir/words"
+				logger "Renaming $start_dir/words2 to $start_dir/words"
+				/bin/mv "$start_dir/words2" "$start_dir/words"
+			fi
 		else
-			logger "Moving rockyou.txt.gz to $start_dir"
-			/bin/mv rockyou.txt.gz $start_dir
-			logger "Unzipping rockyou..."
-			/bin/gunzip "$start_dir/rockyou.txt.gz"
-			logger "Moving $start_dir/rockyou.txt to $start_dir/words"
-			/bin/mv "$start_dir/rockyou.txt" "$start_dir/words"
-			# Removing non UTF8 characters
-			logger "Removing non UTF-8 characters from words >> words2"
-			/usr/bin/iconv -f utf-8 -t utf-8 -c "$start_dir/words" >> "$start_dir/words2"
-			logger "Deleting $start_dir/words"
-			/bin/rm "$start_dir/words"
+			logger "Removing non UTF-8 characters from $wordlist_path >> words2"
+			/usr/bin/iconv -f utf-8 -t utf-8 -c "$wordlist_path" >> "$start_dir/words2"
+			logger "Deleting $wordlist_path"
+			/bin/rm "$wordlist_path"
 			logger "Renaming $start_dir/words2 to $start_dir/words"
 			/bin/mv "$start_dir/words2" "$start_dir/words"
 		fi
 	else
 		logger "Removing non UTF-8 characters from $wordlist_path >> words2"
-		/usr/bin/iconv -f utf-8 -t utf-8 -c "$wordlist_path" >> "$start_dir/words2"
-		logger "Deleting $wordlist_path"
-		/bin/rm "$wordlist_path"
-		logger "Renaming $start_dir/words to $start_dir/words"
+	        /usr/bin/iconv -f utf-8 -t utf-8 -c "$wordlist_path" >> "$start_dir/words2"
+	        logger "Deleting $wordlist_path"
+	        /bin/rm "$wordlist_path"
+	        logger "Renaming $start_dir/words2 to $start_dir/words"
 		/bin/mv "$start_dir/words2" "$start_dir/words"
 	fi
-else
-	logger "Removing non UTF-8 characters from $wordlist_path >> words2"
-        /usr/bin/iconv -f utf-8 -t utf-8 -c "$wordlist_path" >> "$start_dir/words2"
-        logger "Deleting $wordlist_path"
-        /bin/rm "$wordlist_path"
-        logger "Renaming $start_dir/words to $start_dir/words"
-	/bin/mv "$start_dir/words2" "$start_dir/words"
-fi
 
-if [ ! -d "$install_path/respounder" ]; then
-        error "Unable to find Respounder install at: $install_path/respounder"
-        error "Error installing respounder!"
-        respounder_error="TRUE"
-fi
+	/bin/echo "" #spacer
+	if [ ! -d "$install_path/respounder" ]; then
+	        error "Unable to find Respounder install at: $install_path/respounder"
+	        error "Error installing respounder!"
+	        respounder_error="TRUE"
+	fi
 
-if [ ! -d "$install_path/artillery" ]; then
-        error "Unable to find artillery install at: $install_path/artillery"
-        error "Error installing artillery!"
-        artillery_error="TRUE"
-fi
+	if [ ! -d "$install_path/artillery" ]; then
+	        error "Unable to find artillery install at: $install_path/artillery"
+	        error "Error installing artillery!"
+	        artillery_error="TRUE"
+	fi
 
-if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "rockyou_error" == "TRUE" ]; then
-	error "Errors occured installing respounder, artillery or RockYou! Exiting!"
-	exit
-fi
+	if [ "$respounder_error" == "TRUE" ] || [ "$artillery_error" == "TRUE" ] || [ "rockyou_error" == "TRUE" ]; then
+		error "Errors occured installing respounder, artillery or wordlist! Exiting!"
+		exit 1
+	fi
+}
 
-# Prompt user for email, syslog, or both
-# email: need to ask smtp server name, from_address, to_address
-# syslog: need to ask remote host, port, UDP\TCP?
-# The 98/99 files go in: /etc/rsyslog.d
-if [ $silent_param == "FALSE" ]; then
-	# Here we prompt them for what they want
-	#logger "Would you like to configure email alerts for bootsy detections?"
-	emailcomplete="FALSE"
-        while [ $emailcomplete == "FALSE" ]; do
-		logger "Would you like to configure email alerts for bootsy detections?"
-        	read -p "[Y/N]? " email
-                case $email in
-        		[Yy]* ) /bin/echo "Starting email config!"; emailconfig="TRUE";;
-                        [Nn]* ) break;;
-                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
-		esac
-
-		while true; do
-			if [ $emailconfig == "TRUE" ]; then
-				read -p "What is the SMTP server name/ip? " smtp_server_name
-				read -p "What is the [FROM] address? " smtp_from_address
-				read -p "What is the [TO] address? " smtp_to_address
-			fi
-
-			logger "Are these options correct?"
-			warn "SMTP Server: $smtp_server_name"
-			warn "SMTP [FROM] Address: $smtp_from_address"
-			warn "SMTP [TO] Address: $smtp_to_address"
-			read -p "[Y/N]? " correct_options
-			case $correct_options in
-				[Yy]* ) /bin/echo "Continuing with script!"; emailcomplete="TRUE"; break;;
-				* ) /bin/echo "Prompting for input again!";;
+function bootsy_install_logging () {
+	# Prompt user for email, syslog, or both
+	# email: need to ask smtp server name, from_address, to_address
+	# syslog: need to ask remote host, port, UDP\TCP?
+	# The 98/99 files go in: /etc/rsyslog.d
+	if [ $silent_param == "FALSE" ]; then
+		# Here we prompt them for what they want
+		#logger "Would you like to configure email alerts for bootsy detections?"
+		emailcomplete="FALSE"
+	        while [ $emailcomplete == "FALSE" ]; do
+			logger "Would you like to configure email alerts for bootsy detections?"
+	        	read -p "[Y/N]? " email
+	                case $email in
+	        		[Yy]* ) /bin/echo "Starting email config!"; emailconfig="TRUE";;
+	                        [Nn]* ) break;;
+	                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
 			esac
+
+			while true; do
+				if [ $emailconfig == "TRUE" ]; then
+					read -p "What is the SMTP server name/ip? " smtp_server_name
+					read -p "What is the [FROM] address? " smtp_from_address
+					read -p "What is the [TO] address? " smtp_to_address
+				fi
+
+				logger "Are these options correct?"
+				warn "SMTP Server: $smtp_server_name"
+				warn "SMTP [FROM] Address: $smtp_from_address"
+				warn "SMTP [TO] Address: $smtp_to_address"
+				read -p "[Y/N]? " correct_options
+				case $correct_options in
+					[Yy]* ) /bin/echo "Continuing with script!"; emailcomplete="TRUE"; break;;
+					* ) /bin/echo "Prompting for input again!";;
+				esac
+			done
+		emailcomplete="TRUE"
 		done
-	emailcomplete="TRUE"
+		/bin/echo "" #spacer
+		if [ $emailcomplete == "TRUE" ]; then
+			logger "Setting up email configuration..."
+			logger "Updating smtp server name to [$smtp_server_name] in $start_dir/99-bootsy-mail.conf"
+			/bin/sed -i "s/changeserver/$smtp_server_name/g" "$start_dir/99-bootsy-mail.conf"
+			logger "Updating smtp [FROM] address to [$smtp_from_address] in $start_dir/99-bootsy-mail.conf"
+			/bin/sed -i "s/bootsy@change.local/$smtp_from_address/g" "$start_dir/99-bootsy-mail.conf"
+			logger "Updating smtp [TO] address to [$smtp_to_address] in $start_dir/99-bootsy-mail.conf"
+			/bin/sed -i "s/to@change.local/$smtp_to_address/g" "$start_dir/99-bootsy-mail.conf"
+	                logger "Copying $start_dir/99-bootsy-mail.conf to /etc/rsyslog.d"
+	                /bin/cp "$start_dir/99-bootsy-mail.conf" "/etc/rsyslog.d"
+		fi
+	        #logger "Would you like to configure syslogging for bootsy detections?"
+		syslogcomplete="FALSE"
+	        while [ $syslogcomplete == "FALSE" ]; do
+			logger "Would you like to configure syslogging for bootsy detections?"
+	                read -p "[Y/N]? " syslog
+	                case $syslog in
+	                        [Yy]* ) /bin/echo "Continuing with script!"; syslogconfig="TRUE";;
+	                        [Nn]* ) break;;
+	                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+	                esac
+
+	                while true; do
+	                        if [ $syslogconfig == "TRUE" ]; then
+	                                read -p "What is the SYSLOG remote host name/ip? " syslog_server_name
+	                                read -p "What is the SYSLOG port? " syslog_port
+					properprotocol="FALSE"
+					while [ $properprotocol == "FALSE" ]; do
+		                                read -p "What is the SYSLOG protocol [TCP/UDP]? " syslogprotocol
+						case $syslogprotocol in
+							[TCPtcp]* ) /bin/echo "Chose TCP!"; syslog_protocol="@@"; properprotocol="TRUE";;
+							[UDPudp]* ) /bin/echo "Chose UDP!"; syslog_protocol="@"; properprotocol="TRUE";;
+							* ) /bin/echo "Enter TCP or UDP!";;
+						esac
+					done
+	                        fi
+
+	                        logger "Are these options correct?"
+	                        warn "SYSLOG Server: $syslog_server_name"
+	                        warn "SYSLOG [PORT]: $syslog_port"
+	                        warn "SYSLOG [PROTOCOL]: $syslogprotocol"
+	                        read -p "[Y/N]? " correct_options
+	                        case $correct_options in
+	                                [Yy]* ) /bin/echo "Continuing with script!"; syslogcomplete="TRUE"; break;;
+	                                * ) /bin/echo "Prompting for input again!";;
+	                        esac
+	                done
+		syslogcomplete="TRUE"
+	        done
+	        if [ $syslogcomplete == "TRUE" ]; then
+	                logger "Setting up syslog configuration..."
+	                logger "Updating syslog server name to [$syslog_server_name] in $start_dir/98-bootsy-syslog.conf"
+	                /bin/sed -i "s/changeserver/$syslog_server_name/g" "$start_dir/98-bootsy-syslog.conf"
+	                logger "Updating syslog [PORT] to [$syslog_port] in $start_dir/98-bootsy-syslog.conf"
+	                /bin/sed -i "s/changeport/$syslog_port/g" "$start_dir/98-bootsy-syslog.conf"
+	                logger "Updating syslog [PROTOCOL] to [$syslogprotocol] in $start_dir/98-bootsy-syslog.conf"
+	                /bin/sed -i "s/$syslog_server_name/$syslog_protocol$syslog_server_name/g" "$start_dir/98-bootsy-syslog.conf"
+			logger "Copying $start_dir/98-bootsy-syslog.conf to /etc/rsyslog.d"
+			/bin/cp "$start_dir/98-bootsy-syslog.conf" "/etc/rsyslog.d"
+	        fi
+	else
+		# Here, we do defaults, because they chose silent option
+		warn "Artillery will write to local syslog only!"
+		warn "This is particularly useless unless you plan to config this further yourself..."
+		/bin/sleep 10
+	fi
+}
+
+function bootsy_install_python () {
+	# Verify it is a version we're expecting
+	if [ $silent_param == "FALSE" ]; then
+		if [ "$python_version" == "$recommended_python_version" ]; then
+			logger "Python3 version ok!"
+		else
+			warn "We detected Python3 version $python_version!"
+			warn "Our recommended version is $recommended_python_version, and is what this was tested on."
+			warn "You may choose to continue or you can exit and install the recommended version of Python3 now, and set it to the default instance."
+			while true; do
+				read -p "Do you want to continue? " yn
+				case $yn in
+					[Yy]* ) /bin/echo "Continuing with script!"; break;;
+					[Nn]* ) exit;;
+					* ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+				esac
+			done
+		fi
+		/bin/echo "" #spacer
+	        if [ "$release" == "$recommended_release" ]; then
+	                logger "OS Release version ok!"
+	        else
+	                warn "We detected OS Release version $release!"
+	                warn "Our recommended version is $recommended_release, and is what this was tested on."
+	                warn "You may choose to continue or you can exit and install the recommended version of Linux now."
+	                while true; do
+	                        read -p "Do you want to continue? " yn
+	                        case $yn in
+	                                [Yy]* ) /bin/echo "Continuing with script!"; break;;
+	                                [Nn]* ) exit;;
+	                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+	                        esac
+	                done
+	        fi
+		/bin/echo "" #spacer
+	        if [ "$kernel" == "$recommended_kernel" ]; then
+	                logger "OS kernel version ok!"
+	        else
+	                warn "We detected OS kernel version $kernel!"
+	                warn "Our recommended version is $recommended_kernel, and is what this was tested on."
+	                warn "You may choose to continue or you can exit and install the recommended kernel now."
+	                while true; do
+	                        read -p "Do you want to continue? " yn
+	                        case $yn in
+	                                [Yy]* ) /bin/echo "Continuing with script!"; break;;
+	                                [Nn]* ) exit;;
+	                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+	                        esac
+	                done
+	        fi
+	else
+		/bin/echo "" #spacer
+		logger "Detected python version is $python_version."
+		warn "Recommended python version is $recommended_python_version."
+		logger "Detected release version is $release."
+		warn "Recommended release version is $recommended_release."
+		logger "Detected kernel version is $kernel."
+		warn "Recommended kernel version is $recommended_kernel."
+	fi
+}
+
+function bootsy_install_iplist () {
+	# Now that everything is installed as expected, we need to prompt for the path to the IP_LIST file.
+	if [ $silent_param == "FALSE" ]; then
+		if [ -z $ipList_path ]; then
+			logger "Please enter an accessible local or network path containing the IP CSV list file."
+			info "The format of the CSV must be:"
+			info "	ip,mask,gateway,vlanid"
+			info "	10.0.0.2,255.255.255.0,10.0.0.1,10"
+			info "	etc..."
+			logger "Press enter to use default path of $start_dir/ipList.csv"
+			#/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
+			read -p "Enter the CSV file path and press [ENTER]: " csv_path
+		else
+			csv_path="$ipList_path"
+		fi
+	else
+		if [ -z $ipList_path ]; then
+			# Making var empty as we do a check for it below
+			csv_path=""
+		else
+			csv_path="$ipList_path"
+		fi
+	fi
+
+	# Now validate we can see the file
+
+	if [ -z "$csv_path" ]; then
+		logger "Default path of $start_dir/ipList.csv chosen!"
+		csv_path="$start_dir/ipList.csv"
+	fi
+
+	if [ ! -f "$csv_path" ]; then
+		error "File $csv_path appears to either not exist or is not reachable."
+		error "Exiting setup!"
+		exit 1
+	else
+		logger "Executing python network interface setup."
+		cd $start_dir
+		#if [ ! -f "$start_dir/buildIPs.py" ]; then
+		#	error "Cannot file python build file at $start_dir/buildIPs.py! Exiting
+		#	exit 1
+		#else
+		#	/usr/bin/python3 "$start_dir/buildIPs.py" "$csv_path"
+		#fi
+		/usr/bin/python3 "$start_dir/buildIPs.py" "$csv_path"
+	fi
+
+	# Now we copy the created network files in place
+	for MYFILE in $(ls $start_dir/ips/*)
+	do
+		filename=`/bin/echo $MYFILE | /usr/bin/rev | /usr/bin/cut -d / -f 1 | /usr/bin/rev`
+		logger "Copying $filename to /etc/network/interfaces.d"
+		#/bin/cp "$start_dir/ips/$filename" "/etc/network/interfaces.d/$filename"
 	done
-	if [ $emailcomplete == "TRUE" ]; then
-		logger "Setting up email configuration..."
-		logger "Updating smtp server name to [$smtp_server_name] in $start_dir/99-bootsy-mail.conf"
-		/bin/sed -i "s/changeserver/$smtp_server_name/g" "$start_dir/99-bootsy-mail.conf"
-		logger "Updating smtp [FROM] address to [$smtp_from_address] in $start_dir/99-bootsy-mail.conf"
-		/bin/sed -i "s/bootsy@change.local/$smtp_from_address/g" "$start_dir/99-bootsy-mail.conf"
-		logger "Updating smtp [TO] address to [$smtp_to_address] in $start_dir/99-bootsy-mail.conf"
-		/bin/sed -i "s/to@change.local/$smtp_to_address/g" "$start_dir/99-bootsy-mail.conf"
-                logger "Copying $start_dir/99-bootsy-mail.conf to /etc/rsyslog.d"
-                /bin/cp "$start_dir/99-bootsy-mail.conf" "/etc/rsyslog.d"
-	fi
-        #logger "Would you like to configure syslogging for bootsy detections?"
-	syslogcomplete="FALSE"
-        while [ $syslogcomplete == "FALSE" ]; do
-		logger "Would you like to configure syslogging for bootsy detections?"
-                read -p "[Y/N]? " syslog
-                case $syslog in
-                        [Yy]* ) /bin/echo "Continuing with script!"; syslogconfig="TRUE";;
-                        [Nn]* ) break;;
-                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
-                esac
-
-                while true; do
-                        if [ $syslogconfig == "TRUE" ]; then
-                                read -p "What is the SYSLOG remote host name/ip? " syslog_server_name
-                                read -p "What is the SYSLOG port? " syslog_port
-				properprotocol="FALSE"
-				while [ $properprotocol == "FALSE" ]; do
-	                                read -p "What is the SYSLOG protocol [TCP/UDP]? " syslogprotocol
-					case $syslogprotocol in
-						[TCPtcp]* ) /bin/echo "Chose TCP!"; syslog_protocol="@@"; properprotocol="TRUE";;
-						[UDPudp]* ) /bin/echo "Chose UDP!"; syslog_protocol="@"; properprotocol="TRUE";;
-						* ) /bin/echo "Enter TCP or UDP!";;
-					esac
-				done
-                        fi
-
-                        logger "Are these options correct?"
-                        warn "SYSLOG Server: $syslog_server_name"
-                        warn "SYSLOG [PORT]: $syslog_port"
-                        warn "SYSLOG [PROTOCOL]: $syslogprotocol"
-                        read -p "[Y/N]? " correct_options
-                        case $correct_options in
-                                [Yy]* ) /bin/echo "Continuing with script!"; syslogcomplete="TRUE"; break;;
-                                * ) /bin/echo "Prompting for input again!";;
-                        esac
-                done
-	syslogcomplete="TRUE"
-        done
-        if [ $syslogcomplete == "TRUE" ]; then
-                logger "Setting up syslog configuration..."
-                logger "Updating syslog server name to [$syslog_server_name] in $start_dir/98-bootsy-syslog.conf"
-                /bin/sed -i "s/changeserver/$syslog_server_name/g" "$start_dir/98-bootsy-syslog.conf"
-                logger "Updating syslog [PORT] to [$syslog_port] in $start_dir/98-bootsy-syslog.conf"
-                /bin/sed -i "s/changeport/$syslog_port/g" "$start_dir/98-bootsy-syslog.conf"
-                logger "Updating syslog [PROTOCOL] to [$syslogprotocol] in $start_dir/98-bootsy-syslog.conf"
-                /bin/sed -i "s/$syslog_server_name/$syslog_protocol$syslog_server_name/g" "$start_dir/98-bootsy-syslog.conf"
-		logger "Copying $start_dir/98-bootsy-syslog.conf to /etc/rsyslog.d"
-		/bin/cp "$start_dir/98-bootsy-syslog.conf" "/etc/rsyslog.d"
-        fi
-else
-	# Here, we do defaults, because they chose silent option
-	warn "Artillery will write to local syslog only!"
-	warn "This is particularly useless unless you plan to config this further yourself..."
-	/bin/sleep 10
-fi
-
-# Verify it is a version we're expecting
-if [ $silent_param == "FALSE" ]; then
-	if [ "$python_version" == "$recommended_python_version" ]; then
-		logger "Python3 version ok!"
-	else
-		warn "We detected Python3 version $python_version!"
-		warn "Our recommended version is $recommended_python_version, and is what this was tested on."
-		warn "You may choose to continue or you can exit and install the recommended version of Python3 now, and set it to the default instance."
-		while true; do
-			read -p "Do you want to continue? " yn
-			case $yn in
-				[Yy]* ) /bin/echo "Continuing with script!"; break;;
-				[Nn]* ) exit;;
-				* ) /bin/echo "Please enter either [Y/y] or [N/n].";;
-			esac
-		done
-	fi
-        if [ "$release" == "$recommended_release" ]; then
-                logger "OS Release version ok!"
-        else
-                warn "We detected OS Release version $release!"
-                warn "Our recommended version is $recommended_release, and is what this was tested on."
-                warn "You may choose to continue or you can exit and install the recommended version of Linux now."
-                while true; do
-                        read -p "Do you want to continue? " yn
-                        case $yn in
-                                [Yy]* ) /bin/echo "Continuing with script!"; break;;
-                                [Nn]* ) exit;;
-                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
-                        esac
-                done
-        fi
-        if [ "$kernel" == "$recommended_kernel" ]; then
-                logger "OS kernel version ok!"
-        else
-                warn "We detected OS kernel version $kernel!"
-                warn "Our recommended version is $recommended_kernel, and is what this was tested on."
-                warn "You may choose to continue or you can exit and install the recommended kernel now."
-                while true; do
-                        read -p "Do you want to continue? " yn
-                        case $yn in
-                                [Yy]* ) /bin/echo "Continuing with script!"; break;;
-                                [Nn]* ) exit;;
-                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
-                        esac
-                done
-        fi
-else
-	logger "Detected python version is $python_version."
-	warn "Recommended python version is $recommended_python_version."
-	logger "Detected release version is $release."
-	warn "Recommended release version is $recommended_release."
-	logger "Detected kernel version is $kernel."
-	warn "Recommended kernel version is $recommended_kernel."
-fi
-
-# Now that everything is installed as expected, we need to prompt for the path to the IP_LIST file.
-if [ $silent_param == "FALSE" ]; then
-	if [ -z $ipList_path ]; then
-		logger "Please enter an accessible local or network path containing the IP CSV list file."
-		info "The format of the CSV must be:"
-		info "	ip,mask,gateway,vlanid"
-		info "	10.0.0.2,255.255.255.0,10.0.0.1,10"
-		info "	etc..."
-		logger "Press enter to use default path of $start_dir/ipList.csv"
-		#/bin/echo -n "Enter the path the CSV file and press [ENTER]: "
-		read -p "Enter the CSV file path and press [ENTER]: " csv_path
-	else
-		csv_path="$ipList_path"
-	fi
-else
-	if [ -z $ipList_path ]; then
-		# Making var empty as we do a check for it below
-		csv_path=""
-	else
-		csv_path="$ipList_path"
-	fi
-fi
-
-# Now validate we can see the file
-
-if [ -z "$csv_path" ]; then
-	logger "Default path of $start_dir/ipList.csv chosen!"
-	csv_path="$start_dir/ipList.csv"
-fi
-
-if [ ! -f "$csv_path" ]; then
-	error "File $csv_path appears to either not exist or is not reachable."
-	error "Exiting setup!"
-	exit 1
-else
-	logger "Executing python network interface setup."
-	cd $start_dir
-	#if [ ! -f "$start_dir/buildIPs.py" ]; then
-	#	error "Cannot file python build file at $start_dir/buildIPs.py! Exiting
-	#	exit 1
-	#else
-	#	/usr/bin/python3 "$start_dir/buildIPs.py" "$csv_path"
-	#fi
-	/usr/bin/python3 "$start_dir/buildIPs.py" "$csv_path"
-fi
-
-# Now we copy the created network files in place
-for MYFILE in $(ls $start_dir/ips/*)
-do
-	filename=`/bin/echo $MYFILE | /usr/bin/rev | /usr/bin/cut -d / -f 1 | /usr/bin/rev`
-	logger "Copying $filename to /etc/network/interfaces.d"
-	#/bin/cp "$start_dir/ips/$filename" "/etc/network/interfaces.d/$filename"
-done
-/bin/cp $start_dir/ips/* /etc/network/interfaces.d/
-# Now we start each of the interfaces
-for IFACE in $(ls /etc/network/interfaces.d/*-*)
-do
-	#echo "Checking file $IFACE"
-	interface_name=`/bin/echo $IFACE | /usr/bin/rev | /usr/bin/cut -d / -f 1 | /usr/bin/rev`
-	#echo "interface name is $interface_name"
-	IFACE2=`/bin/echo $interface_name | /usr/bin/awk -F "-" '{print $1 ":" $2}'`
-	#echo "parsed name is $IFACE2"
-	#echo $IFACE2
-	logger "Starting interface adapter: $IFACE2"
-	#/sbin/ifup $IFACE2
-done
+	/bin/cp $start_dir/ips/* /etc/network/interfaces.d/
+	# Now we start each of the interfaces
+	for IFACE in $(ls /etc/network/interfaces.d/*-*)
+	do
+		#echo "Checking file $IFACE"
+		interface_name=`/bin/echo $IFACE | /usr/bin/rev | /usr/bin/cut -d / -f 1 | /usr/bin/rev`
+		#echo "interface name is $interface_name"
+		IFACE2=`/bin/echo $interface_name | /usr/bin/awk -F "-" '{print $1 ":" $2}'`
+		#echo "parsed name is $IFACE2"
+		#echo $IFACE2
+		logger "Starting interface adapter: $IFACE2"
+		#/sbin/ifup $IFACE2
+	done
 }
 
 # =========================================
@@ -518,11 +532,10 @@ done
 
 #/usr/bin/apt-get install -y apache2=2:1.7~5 || apache2_error="TRUE"
 
-function security () {
+function bootsy_security () {
 	# =========================================
 	# ========== SECURITY HARDENING ===========
 	# =========================================
-
 	# First we use ssh-keygen to generate public\private key pair
 	logger "Generating public\private key pair for to secure SSH..."
 	if  [ $silent_param == "TRUE" ]; then
@@ -563,14 +576,16 @@ function security () {
 
 	read -p "Press [ENTER] to continue when ready... " anykey
 
-
 	# Now lets add a limited permissions user
 	if [ $(id -u) -eq 0 ]; then
-		read -p "Enter username: " username
+		read -p "Enter new (limited privilege) username: " username
 		read -s -p "Enter password: " password
+		/bin/echo " "
 		/bin/egrep "^$username" /etc/passwd >/dev/null
 		if [ $? -eq 0 ]; then
 			warn "$username already exists!"
+			warn "Waiting 3 seconds and trying again..."
+			/bin/sleep 3
 			return 1
 		else
 			pass=$(/usr/bin/perl -e 'print crypt($ARGV[0], "password")' $password)
@@ -596,64 +611,87 @@ function security () {
 			logger "Adding $username to sudoers group"
 		        /usr/sbin/usermod -aG sudo "$username"
 
-		        # ================= 
-		        # CHANGE HOSTNAME 
-		        #==================                  
+		        # =================
+		        # CHANGE HOSTNAME
+		        #==================
 		        /bin/echo "bootsy" > /etc/hostname
 		        /bin/sed -i "s/raspberrypi/bootsy/g" "/etc/hosts"
-		        /bin/hostname
+		        /bin/hostname bootsy
 
 		        # =======================
 		        # FORCE PASSWORD CHANGE 
 		        # =======================
 		        logger "You will have to change your password at next login"
 		        /usr/bin/chage -d 0 $username
-
+			worked="TUBULAR"
 		fi
-		return 0
+		worked="TUBULAR"
 	else
 		error "Only root may add a user to the system"
 		exit 1
 	fi
 }
 
-function start_bootsy {
-# Wait 2 minutes for all services to start because rpi and start respounder
-line="@reboot sleep 120 && $install_dir/respounder/respounder"
-(crontab -u root -l; echo "$line" ) | crontab -u root -
-# Wait 2 minutes for all services to start because rpi and start artillery
-line="@reboot sleep 120 && /usr/bin/python3 $install_dir/artillery/artillery.py"
-(crontab -u root -l; echo "$line" ) | crontab -u root -
-# Now we enable the crontab for startup
-/bin/systemctl enable cron
-# Now restart it
-/usr/bin/service cron restart
+function bootsy_start () {
+	cron=`/usr/bin/crontab -l`
+	# Wait 2 minutes for all services to start because rpi and start respounder
+	cron_respounder=`echo $cron | grep respounder`
+	if [ -z "$cron_respounder" ]; then
+		line="@reboot sleep 120 && $install_dir/respounder/respounder"
+		(crontab -u root -l; echo "$line" ) | crontab -u root -
+	else
+		warn "Respounder cron line already exists: $cron_respounder"
+	fi
+	# Wait 2 minutes for all services to start because rpi and start artillery
+	cron_artillery=`echo $cron | grep artillery`
+	if [ -z "$cron_artillery" ]; then
+		line="@reboot sleep 120 && /usr/bin/python3 $install_dir/artillery/artillery.py"
+		(crontab -u root -l; echo "$line" ) | crontab -u root -
+	else
+		warn "Artillery cron line already exists: $cron_artillery"
+	fi
+	# Now we enable the crontab for startup
+	/bin/systemctl enable cron
+	# Now restart it
+	/usr/sbin/service cron restart
 }
 
+# Always do bootsy check
+info "===================="
+info "Checking environment"
+info "===================="
+bootsy_check
+info "================="
+info "Downloading items"
+info "================="
+bootsy_download
 # Call bootsy function
 if [ $security_only == "FALSE" ]; then
-	bootsy
+	info "=================="
+	info "Setting up logging"
+	info "=================="
+	bootsy_install_logging
+	info "======================"
+	info "Validating environment"
+	info "======================"
+	bootsy_install_python
+	info "========================"
+	info "Gathering new interfaces"
+	info "========================"
+	bootsy_install_iplist
 fi
 # Call security function
-security_count=1
-until [ $security_count -gt 3 ] || [[ $security_pass == "0" ]]
+worked="TOTALLY"
+info "===================="
+info "Setting up secure pi"
+info "===================="
+until [ $worked == "TUBULAR" ]
 do
-	#/bin/echo "Security count: $security_count"
-	security
-	security_pass=$?
-	if [[ $security_pass == "0" ]]; then
-		logger "Worked! Got a $? return code!"
-		security_count=4 # Can't seem to get the "or" in the until working, so we can cheat a little...
-	else
-		error "Failed! Got a return code of $?"
-	fi
-	((security_count++))
-	if [ $security_count -gt 3 ]; then
-		security_pass=0
-	else
-		warn "Running security function again..."
-		security
-	fi
+	bootsy_security
 done
+# Now we set bootsy to start on boot
+bootsy_start
 
-logger "Done with security section..."
+logger "FINISHED! GOING DOWN FOR A REBOOT IN 10 SECONDS!"
+/bin/sleep 10
+/sbin/shutdown -r now
