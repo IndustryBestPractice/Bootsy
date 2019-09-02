@@ -578,51 +578,62 @@ function bootsy_security () {
 
 	# Now lets add a limited permissions user
 	if [ $(id -u) -eq 0 ]; then
-		read -p "Enter new (limited privilege) username: " username
-		read -s -p "Enter password: " password
-		/bin/echo " "
-		/bin/egrep "^$username" /etc/passwd >/dev/null
-		if [ $? -eq 0 ]; then
-			warn "$username already exists!"
-			warn "Waiting 3 seconds and trying again..."
-			/bin/sleep 3
-			return 1
-		else
-			pass=$(/usr/bin/perl -e 'print crypt($ARGV[0], "password")' $password)
+               	read -p "Do you want to add a new, limited priv user? " yn
+                       	case $yn in
+                               	[Yy]* ) /bin/echo "Continuing with script!"; newuser="YES";;
+                                [Nn]* ) newuser="NO"; worked="TUBULAR";;
+                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+                esac
+		if [ $newuser == "YES" ]; then
+			read -p "Enter new (limited privilege) username: " username
+			read -s -p "Enter password: " password
 			/bin/echo " "
-			/usr/sbin/useradd -m -p $pass $username
+			/bin/egrep "^$username" /etc/passwd >/dev/null
 			if [ $? -eq 0 ]; then
-				logger "User has been added to system!"
-			else
-				error "Failed to add a user!"
+				warn "$username already exists!"
+				warn "Waiting 3 seconds and trying again..."
+				/bin/sleep 3
 				return 1
-			fi
-			# Now create an ssh director for this user:
-			logger "Creating /home/$username/.ssh/"
-		        /bin/mkdir "/home/$username/.ssh/" -p
-			if [ ! -f "/home/$username/.ssh/authorized_keys file" ]; then
+			else
+				pass=$(/usr/bin/perl -e 'print crypt($ARGV[0], "password")' $password)
+				/bin/echo " "
+				/usr/sbin/useradd -m -p $pass $username
+				if [ $? -eq 0 ]; then
+					logger "User has been added to system!"
+				else
+					error "Failed to add a user!"
+					return 1
+				fi
+				# Now create an ssh director for this user:
+				logger "Creating /home/$username/.ssh/"
+			        /bin/mkdir "/home/$username/.ssh/" -p
+				if [ ! -f "/home/$username/.ssh/authorized_keys file" ]; then
 				logger "Creating empty /home/$username/.ssh/authorized_keys file"
-			        /usr/bin/touch "/home/$username/.ssh/authorized_keys"
+				        /usr/bin/touch "/home/$username/.ssh/authorized_keys"
+				fi
+			        # Now copy our SSH keys in there and re-permission them
+				logger "Adding $start_dir/bootsy_rsa.pub to authorized_keys file"
+			        /bin/cat "$start_dir/bootsy_rsa.pub" >> "/home/$username/.ssh/authorized_keys"
+			        # Now we add the new user to the sudoers group
+				logger "Adding $username to sudoers group"
+			        /usr/sbin/usermod -aG sudo "$username"
+			        # =================
+			        # CHANGE HOSTNAME
+			        #==================
+			        /bin/echo "bootsy" > /etc/hostname
+			        /bin/sed -i "s/raspberrypi/bootsy/g" "/etc/hosts"
+			        /bin/hostname bootsy
+
+			        # =======================
+			        # FORCE PASSWORD CHANGE 
+			        # =======================
+			        logger "You will have to change your password at next login"
+			        /usr/bin/chage -d 0 $username
+				worked="TUBULAR"
 			fi
-		        # Now copy our SSH keys in there and re-permission them
-			logger "Adding $start_dir/bootsy_rsa.pub to authorized_keys file"
-		        /bin/cat "$start_dir/bootsy_rsa.pub" >> "/home/$username/.ssh/authorized_keys"
-		        # Now we add the new user to the sudoers group
-			logger "Adding $username to sudoers group"
-		        /usr/sbin/usermod -aG sudo "$username"
-
-		        # =================
-		        # CHANGE HOSTNAME
-		        #==================
-		        /bin/echo "bootsy" > /etc/hostname
-		        /bin/sed -i "s/raspberrypi/bootsy/g" "/etc/hosts"
-		        /bin/hostname bootsy
-
-		        # =======================
-		        # FORCE PASSWORD CHANGE 
-		        # =======================
-		        logger "You will have to change your password at next login"
-		        /usr/bin/chage -d 0 $username
+			worked="TUBULAR"
+		else
+			logger "Not adding new user"
 			worked="TUBULAR"
 		fi
 		worked="TUBULAR"
