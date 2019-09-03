@@ -522,7 +522,7 @@ function bootsy_install_iplist () {
 		#echo "parsed name is $IFACE2"
 		#echo $IFACE2
 		logger "Starting interface adapter: $IFACE2"
-		#/sbin/ifup $IFACE2
+		/sbin/ifup $IFACE2
 	done
 }
 
