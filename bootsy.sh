@@ -72,6 +72,22 @@ function info {
 	/bin/echo -e "${BLUE}$1${NC}"
 }
 
+while true; do
+	#clear
+	warn "This script is purpose built for a fresh install of raspbian on a raspberry pi."
+	warn "This script will: "
+	warn "	1) Change your hostname"
+	warn "	2) Add a limited priv user"
+	warn "	3) Setup key based SSH auth over an ethereal port"
+	warn "Are you sure you would like to continue?"
+	read -p "[Y/N]? " reallysure
+	        case $reallysure in
+	                [Yy]* ) /bin/echo "Hooray, you were sure!";;
+	                [Nn]* ) exit;;
+	                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+	esac
+done
+
 if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root" 
    exit 1
@@ -159,11 +175,6 @@ do
 done
 shift $((OPTIND-1))
 
-# Testing wordfile argument
-#warn "Wordlist given is $wordlist_path"
-#warn "iplist given is $ipList_path"
-
-#exit
 function bootsy_check () {
 	logger "Detected release version: $release"
 	logger "Detected kernel version: $kernel"
@@ -493,6 +504,14 @@ function bootsy_install_iplist () {
 		error "Exiting setup!"
 		exit 1
 	else
+		csv_header=`/usr/bin/head -n 1 $csv_path`
+		if [ $csv_header != "ip,mask,gateway,vlanid" ]; then
+			error "The header of the CSV file did not match as expected!"
+			error "The header we were expecting is: ip,mask,gateway,vlanid"
+			error "The header we found was: $csv_header"
+			error "Exiting!"
+			exit 1
+		fi
 		logger "Executing python network interface setup."
 		cd $start_dir
 		#if [ ! -f "$start_dir/buildIPs.py" ]; then
@@ -521,8 +540,8 @@ function bootsy_install_iplist () {
 		IFACE2=`/bin/echo $interface_name | /usr/bin/awk -F "-" '{print $1 ":" $2}'`
 		#echo "parsed name is $IFACE2"
 		#echo $IFACE2
-		logger "Starting interface adapter: $IFACE2"
-		/sbin/ifup $IFACE2
+		logger "Interface $IFACE2 will start on boot"
+		#/sbin/ifup $IFACE2
 	done
 }
 
@@ -537,106 +556,102 @@ function bootsy_security () {
 	# ========== SECURITY HARDENING ===========
 	# =========================================
 	# First we use ssh-keygen to generate public\private key pair
-	logger "Generating public\private key pair for to secure SSH..."
-	if  [ $silent_param == "TRUE" ]; then
-		# don't prompt for passphrase
-		keyout=`/usr/bin/ssh-keygen -f ./bootsy_rsa -t rsa -b 4096 -N ''`
-	else
-		# prompt for passphrase
-		read -s -p "Enter your SSH key passphrase: " pswd
-		/bin/echo " " # giving us a space between promptin and the next line
-		if [ -f "$start_dir/bootsy_rsa" ]; then
-			error "Deleting $start_dir/bootsy_rsa"
-			/bin/rm "$start_dir/bootsy_rsa"
-		fi
-		if [ -f "$start_dir/bootsy_rsa.pub" ]; then
-			error "Deleting $start_dir/bootsy_rsa.pub"
-			/bin/rm "$start_dir/bootsy_rsa.pub"
-		fi
-		#/bin/echo " " # giving us a space between prompting and the next line
-		logger "Generating keygen with RSA-4096, this may take a moment..."
-		keyout=`/usr/bin/ssh-keygen -f "$start_dir/bootsy_rsa" -t rsa -b 4096 -N '$pswd'`
-		logger "Generation complete"
-	fi
+	#logger "Generating public\private key pair for to secure SSH..."
+	#if  [ $silent_param == "TRUE" ]; then
+	#	# don't prompt for passphrase
+	#	keyout=`/usr/bin/ssh-keygen -f ./bootsy_rsa -t rsa -b 4096 -N ''`
+	#else
+	#	# prompt for passphrase
+	#	read -s -p "Enter your SSH key passphrase: " pswd
+	#	/bin/echo " " # giving us a space between promptin and the next line
+	#	if [ -f "$start_dir/bootsy_rsa" ]; then
+	#		error "Deleting $start_dir/bootsy_rsa"
+	#		/bin/rm "$start_dir/bootsy_rsa"
+	#	fi
+	#	if [ -f "$start_dir/bootsy_rsa.pub" ]; then
+	#		error "Deleting $start_dir/bootsy_rsa.pub"
+	#		/bin/rm "$start_dir/bootsy_rsa.pub"
+	#	fi
+	#	#/bin/echo " " # giving us a space between prompting and the next line
+	#	logger "Generating keygen with RSA-4096, this may take a moment..."
+	#	keyout=`/usr/bin/ssh-keygen -f "$start_dir/bootsy_rsa" -t rsa -b 4096 -N '$pswd'`
+	#	logger "Generation complete"
+	#fi
 
 	# Now we wait for the user to copy the SSH Key info
-	char=" "
-	num_spaces=`/bin/echo $keyout | /usr/bin/awk -F"${char}" '{print NF-1}'`
-	for i in $(seq 1 $num_spaces)
-		do
-			line=`/bin/echo $keyout | /usr/bin/cut -d " " -f $i`
-			#echo "line is: $line"
-			if [[ $line == *"SHA256"* ]]; then
-				keyfingerprint=$line
-			fi
-		done
-	logger "Key Fingerprint: $keyfingerprint"
-	logger "Public Key: $start_dir/bootsy_rsa.pub"
-	logger "Private Key: $start_dir/bootsy_rsa"
+	#char=" "
+	#num_spaces=`/bin/echo $keyout | /usr/bin/awk -F"${char}" '{print NF-1}'`
+	#for i in $(seq 1 $num_spaces)
+	#	do
+	#		line=`/bin/echo $keyout | /usr/bin/cut -d " " -f $i`
+	#		#echo "line is: $line"
+	#		if [[ $line == *"SHA256"* ]]; then
+	#			keyfingerprint=$line
+	#		fi
+	#	done
+	#logger "Key Fingerprint: $keyfingerprint"
+	#logger "Public Key: $start_dir/bootsy_rsa.pub"
+	#logger "Private Key: $start_dir/bootsy_rsa"
 
-	read -p "Press [ENTER] to continue when ready... " anykey
+	#read -p "Press [ENTER] to continue when ready... " anykey
 
 	# Now lets add a limited permissions user
 	if [ $(id -u) -eq 0 ]; then
-               	read -p "Do you want to add a new, limited priv user? " yn
-                       	case $yn in
-                               	[Yy]* ) /bin/echo "Continuing with script!"; newuser="YES";;
-                                [Nn]* ) newuser="NO"; worked="TUBULAR";;
-                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
-                esac
-		if [ $newuser == "YES" ]; then
-			read -p "Enter new (limited privilege) username: " username
-			read -s -p "Enter password: " password
-			/bin/echo " "
-			/bin/egrep "^$username" /etc/passwd >/dev/null
-			if [ $? -eq 0 ]; then
-				warn "$username already exists!"
-				warn "Waiting 3 seconds and trying again..."
-				/bin/sleep 3
-				return 1
-			else
-				pass=$(/usr/bin/perl -e 'print crypt($ARGV[0], "password")' $password)
-				/bin/echo " "
-				/usr/sbin/useradd -m -p $pass $username
-				if [ $? -eq 0 ]; then
-					logger "User has been added to system!"
-				else
-					error "Failed to add a user!"
-					return 1
-				fi
-				# Now create an ssh director for this user:
-				logger "Creating /home/$username/.ssh/"
-			        /bin/mkdir "/home/$username/.ssh/" -p
-				if [ ! -f "/home/$username/.ssh/authorized_keys file" ]; then
-				logger "Creating empty /home/$username/.ssh/authorized_keys file"
-				        /usr/bin/touch "/home/$username/.ssh/authorized_keys"
-				fi
-			        # Now copy our SSH keys in there and re-permission them
-				logger "Adding $start_dir/bootsy_rsa.pub to authorized_keys file"
-			        /bin/cat "$start_dir/bootsy_rsa.pub" >> "/home/$username/.ssh/authorized_keys"
-			        # Now we add the new user to the sudoers group
-				logger "Adding $username to sudoers group"
-			        /usr/sbin/usermod -aG sudo "$username"
-			        # =================
-			        # CHANGE HOSTNAME
-			        #==================
-			        /bin/echo "bootsy" > /etc/hostname
-			        /bin/sed -i "s/raspberrypi/bootsy/g" "/etc/hosts"
-			        /bin/hostname bootsy
-
-			        # =======================
-			        # FORCE PASSWORD CHANGE 
-			        # =======================
-			        logger "You will have to change your password at next login"
-			        /usr/bin/chage -d 0 $username
-				worked="TUBULAR"
-			fi
-			worked="TUBULAR"
+		read -p "Enter new (limited privilege) username: " username
+		read -s -p "Enter password: " password
+		/bin/echo " "
+		/bin/egrep "^$username" /etc/passwd >/dev/null
+		if [ $? -eq 0 ]; then
+			warn "$username already exists!"
+			warn "Waiting 3 seconds and trying again..."
+			/bin/sleep 3
+			return 1
 		else
-			logger "Not adding new user"
-			worked="TUBULAR"
+			pass=$(/usr/bin/perl -e 'print crypt($ARGV[0], "password")' $password)
+			/bin/echo " "
+			/usr/sbin/useradd -m -p $pass $username
+			if [ $? -eq 0 ]; then
+				logger "User has been added to system!"
+			else
+				error "Failed to add a user!"
+				return 1
+			fi
+			# Now create an ssh director for this user:
+		#	logger "Creating /home/$username/.ssh/"
+		#        /bin/mkdir "/home/$username/.ssh/" -p
+		#	if [ ! -f "/home/$username/.ssh/authorized_keys file" ]; then
+		#	logger "Creating empty /home/$username/.ssh/authorized_keys file"
+		#	        /usr/bin/touch "/home/$username/.ssh/authorized_keys"
+		#	fi
+		        # Now copy our SSH keys in there and re-permission them
+		#	logger "Adding $start_dir/bootsy_rsa.pub to authorized_keys file"
+		#        /bin/cat "$start_dir/bootsy_rsa.pub" >> "/home/$username/.ssh/authorized_keys"
+		        # Now we add the new user to the sudoers group
+			logger "Adding $username to sudoers group"
+		        /usr/sbin/usermod -aG sudo "$username"
+		        # =======================
+		        # FORCE PASSWORD CHANGE 
+		        # =======================
+		        #logger "You will have to change your password at next login"
+		        #/usr/bin/chage -d 0 $username
 		fi
+                # =================
+                # CHANGE HOSTNAME
+                # =================
+                /bin/echo "bootsy" > /etc/hostname
+                /bin/sed -i "s/raspberrypi/bootsy/g" "/etc/hosts"
+                /bin/hostname bootsy
+
+		# ===================
+		# SETUP SSH PROPERLY
+		# ===================
+		random_port=`/usr/bin/shuf --input=10000-30000 -n 1`
+                logger "Setting SSH over port $random_port"
+                /bin/sed -i "s/#Port 22/Port $andom_port/g" "/etc/ssh/sshd_config"
+                logger "Prohibiting root from logging in via SSH"
+                /bin/sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin no/g" "/etc/ssh/sshd_config"
 		worked="TUBULAR"
+		return 0
 	else
 		error "Only root may add a user to the system"
 		exit 1
@@ -645,10 +660,14 @@ function bootsy_security () {
 
 function bootsy_start () {
 	cron=`/usr/bin/crontab -l`
-	# Wait 2 minutes for all services to start because rpi and start respounder
+	if [ $emailconfig == "TRUE" ]; then
+                line="* * * * * $start_dir/check-bootsy.sh"
+                (crontab -u root -l; echo "$line" ) | crontab -u root -
+	fi
+	# Run respounder every minute
 	cron_respounder=`echo $cron | grep respounder`
 	if [ -z "$cron_respounder" ]; then
-		line="@reboot sleep 120 && $install_dir/respounder/respounder"
+		line="* * * * * $install_dir/respounder/respounder"
 		(crontab -u root -l; echo "$line" ) | crontab -u root -
 	else
 		warn "Respounder cron line already exists: $cron_respounder"
