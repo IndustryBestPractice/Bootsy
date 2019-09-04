@@ -641,7 +641,8 @@ function bootsy_security () {
                 # =================
 		random_3_digit=`/usr/bin/shuf --input=100-999 -n 1`
                 /bin/echo "bootsy$random_3_digit" > /etc/hostname
-                /bin/sed -i "s/raspberrypi/bootsy$random_3_digit/g" "/etc/hosts"
+                /bin/echo "127.0.1.1	bootsy$random_3_digit">>"/etc/hosts"
+		/bin/echo "127.0.0.1    bootsy$random_3_digit">>"/etc/hosts"
                 /bin/hostname "bootsy$random_3_digit"
 		logger "Updating hostname to bootsy$random_3_digit"
 
