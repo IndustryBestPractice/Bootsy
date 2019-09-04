@@ -686,7 +686,7 @@ function bootsy_start () {
 	# Wait 2 minutes for all services to start because rpi and start artillery
 	cron_artillery=`/usr/bin/crontab -l | /bin/grep "artillery"`
 	if [ -z "$cron_artillery" ]; then
-		line="@reboot sleep 120 && /usr/bin/python3 $install_dir/artillery/artillery.py"
+		line="@reboot sleep 120 && /usr/bin/python3 $install_path/artillery/artillery.py"
 		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
 		logger "Added line to crontab: $line"
 	else
