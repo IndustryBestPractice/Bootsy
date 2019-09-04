@@ -636,9 +636,10 @@ function bootsy_security () {
                 # =================
                 # CHANGE HOSTNAME
                 # =================
-                /bin/echo "bootsy" > /etc/hostname
-                /bin/sed -i "s/raspberrypi/bootsy/g" "/etc/hosts"
-                /bin/hostname bootsy
+		random_3_digit=`/usr/bin/shuf --input=100-999 -n 1`
+                /bin/echo "bootsy$random_3_digit" > /etc/hostname
+                /bin/sed -i "s/raspberrypi/bootsy$random_3_digit/g" "/etc/hosts"
+                /bin/hostname "bootsy$random_3_digit"
 
 		# ===================
 		# SETUP SSH PROPERLY
