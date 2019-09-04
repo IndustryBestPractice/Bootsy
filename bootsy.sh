@@ -601,9 +601,12 @@ function bootsy_security () {
 		/bin/egrep "^$username" /etc/passwd >/dev/null
 		if [ $? -eq 0 ]; then
 			warn "$username already exists!"
-			warn "Waiting 3 seconds and trying again..."
-			/bin/sleep 3
-			return 1
+			#warn "Waiting 3 seconds and trying again..."
+			#/bin/sleep 3
+			#return 1
+			warn "Not changing the users password..."
+			logger "Adding $username to sudoers group"
+                        /usr/sbin/usermod -aG sudo "$username"
 		else
 			pass=$(/usr/bin/perl -e 'print crypt($ARGV[0], "password")' $password)
 			/bin/echo " "
@@ -640,6 +643,7 @@ function bootsy_security () {
                 /bin/echo "bootsy$random_3_digit" > /etc/hostname
                 /bin/sed -i "s/raspberrypi/bootsy$random_3_digit/g" "/etc/hosts"
                 /bin/hostname "bootsy$random_3_digit"
+		logger "Updating hostname to bootsy$random_3_digit"
 
 		# ===================
 		# SETUP SSH PROPERLY
