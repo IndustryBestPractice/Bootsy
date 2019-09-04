@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Brought to you by the relatively ok minds of Snorkel42, Space Cowboy, and Grubby
+# Brought to you by the relatively ok minds of Snorkel42, MarshallBanana, and Grubby
 
 /bin/echo "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMNk:..  ..:kNMMMMMMMMMMMMMMMMMMMMMMMMMMMMWKdc,',;lkNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMXl.        .lXMMMMMMMMMMMMMMMMMMMMMMMMMMNd.        ;OWMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
