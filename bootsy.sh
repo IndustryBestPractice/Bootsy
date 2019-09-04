@@ -677,7 +677,7 @@ function bootsy_start () {
 	# Run respounder every minute
 	cron_respounder=`/usr/bin/crontab -l | /bin/grep "respounder"`
 	if [ -z "$cron_respounder" ]; then
-		line="* * * * * $install_dir/respounder/respounder -rhostname -json | /usr/bin/logger -t responder-detected"
+		line="* * * * * $install_path/respounder/respounder -rhostname -json | /usr/bin/logger -t responder-detected"
 		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
 		logger "Added line to crontab: $line"
 	else
