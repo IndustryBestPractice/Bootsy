@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Brought to you by the relatively ok minds of Snorkel42, Space Cowboy, and Grubby
+
 /bin/echo "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMNk:..  ..:kNMMMMMMMMMMMMMMMMMMMMMMMMMMMMWKdc,',;lkNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMXl.        .lXMMMMMMMMMMMMMMMMMMMMMMMMMMNd.        ;OWMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMXc    .::.    lXMMMMMMMMMMMMMMMMMMMMMMMMNo.   .'.    'OWMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
@@ -72,41 +74,17 @@ function info {
 	/bin/echo -e "${BLUE}$1${NC}"
 }
 
-while true; do
-	#clear
-	warn "This script is purpose built for a fresh install of raspbian on a raspberry pi."
-	warn "This script will: "
-	warn "	1) Change your hostname"
-	warn "	2) Add a limited priv user"
-	warn "	3) Setup key based SSH auth over an ethereal port"
-	warn "Are you sure you would like to continue?"
-	read -p "[Y/N]? " reallysure
-	        case $reallysure in
-	                [Yy]* ) /bin/echo "Hooray, you were sure!";;
-	                [Nn]* ) exit;;
-	                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
-	esac
-done
-
 if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root" 
    exit 1
 fi
 
-usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
+#usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
+"$(basename "$0") [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
 
 where (Note: All switches are optional and you will be prompted for those you don't specify):
         -h  Display this help message
         -i  Install path
-        -s  Silent switch. Don't prompt for validation of versions and other stuff. See our github for example files.
-                Silent switch expects the following to exist:
-                        $start_dir/ipList.csv
-                        $start_dir/syslog_config
-                Silent switch does the following:
-                        > Checks if funkList2000.txt exists and if not, checks for
-                          user input file, and if not exists then downloads rockyou for the wordlist
-                        > Creates folder $start_dir if it doesn't already exist
-                        > Does not prompt for email\syslog config at all
         -c  IPList.csv file path
         -w  Wordlist file path (adding this option stops the download of rockyou)
         -l  Syslog config file path (leave this option blank to load our default config)
@@ -129,13 +107,11 @@ where (Note: All switches are optional and you will be prompted for those you do
 # Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
 security_only="FALSE"
-while getopts ":hsi:c:w:l:u" opt
+while getopts ":hi:c:w:l:u" opt
 do
 	case "${opt}" in
 		h ) info "$usage"
 		    exit 0
-		    ;;
-		s ) silent_param="TRUE"
 		    ;;
 		i ) install_path="$OPTARG"
 		    ;;
@@ -174,6 +150,23 @@ do
 	esac
 done
 shift $((OPTIND-1))
+
+while [[ ! $reallysure == "y" ]] && [[ ! $reallysure == "Y" ]]; do
+        #clear
+        warn "This script is purpose built for a fresh install of raspbian on a raspberry pi."
+        warn "This script will: "
+        warn "  1) Change your hostname"
+        warn "  2) Add a limited priv user"
+        warn "  3) Setup key based SSH auth over an ethereal port"
+        error " 4) Don't run with the silent switch...it's broken logic meant for another time..."
+        warn "Are you sure you would like to continue?"
+        read -p "[Y/N]? " reallysure
+                case $reallysure in
+                        [Yy]* ) /bin/echo "Continuing...";;
+                        [Nn]* ) exit;;
+                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+                esac
+done
 
 function bootsy_check () {
 	logger "Detected release version: $release"
@@ -313,30 +306,32 @@ function bootsy_install_logging () {
 	        while [ $emailcomplete == "FALSE" ]; do
 			logger "Would you like to configure email alerts for bootsy detections?"
 	        	read -p "[Y/N]? " email
-	                case $email in
+	                case "$email" in
 	        		[Yy]* ) /bin/echo "Starting email config!"; emailconfig="TRUE";;
 	                        [Nn]* ) break;;
-	                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+	                        * ) /bin/echo "Please enter either [Y/y] or [N/n]."; emailconfig="FALSE";;
 			esac
 
-			while true; do
+			while [ $emailcomplete == "FALSE" ]; do
 				if [ $emailconfig == "TRUE" ]; then
 					read -p "What is the SMTP server name/ip? " smtp_server_name
 					read -p "What is the [FROM] address? " smtp_from_address
 					read -p "What is the [TO] address? " smtp_to_address
-				fi
 
-				logger "Are these options correct?"
-				warn "SMTP Server: $smtp_server_name"
-				warn "SMTP [FROM] Address: $smtp_from_address"
-				warn "SMTP [TO] Address: $smtp_to_address"
-				read -p "[Y/N]? " correct_options
-				case $correct_options in
-					[Yy]* ) /bin/echo "Continuing with script!"; emailcomplete="TRUE"; break;;
-					* ) /bin/echo "Prompting for input again!";;
-				esac
+					logger "Are these options correct?"
+					warn "SMTP Server: $smtp_server_name"
+					warn "SMTP [FROM] Address: $smtp_from_address"
+					warn "SMTP [TO] Address: $smtp_to_address"
+					read -p "[Y/N]? " correct_options
+					case $correct_options in
+						[Yy]* ) /bin/echo "Continuing with script!"; emailcomplete="TRUE";;
+						[Nn]* ) /bin/echo "Enter options again..."; emailcomplete="FALSE";;
+						* ) /bin/echo "Prompting for input again!";;
+					esac
+				else
+					break
+				fi
 			done
-		emailcomplete="TRUE"
 		done
 		/bin/echo "" #spacer
 		if [ $emailcomplete == "TRUE" ]; then
@@ -355,13 +350,13 @@ function bootsy_install_logging () {
 	        while [ $syslogcomplete == "FALSE" ]; do
 			logger "Would you like to configure syslogging for bootsy detections?"
 	                read -p "[Y/N]? " syslog
-	                case $syslog in
+	                case "$syslog" in
 	                        [Yy]* ) /bin/echo "Continuing with script!"; syslogconfig="TRUE";;
 	                        [Nn]* ) break;;
-	                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+	                        * ) /bin/echo "Please enter either [Y/y] or [N/n]."; syslogconfig="FALSE";;
 	                esac
 
-	                while true; do
+	                while [ $syslogcomplete == "FALSE" ]; do
 	                        if [ $syslogconfig == "TRUE" ]; then
 	                                read -p "What is the SYSLOG remote host name/ip? " syslog_server_name
 	                                read -p "What is the SYSLOG port? " syslog_port
@@ -374,19 +369,21 @@ function bootsy_install_logging () {
 							* ) /bin/echo "Enter TCP or UDP!";;
 						esac
 					done
-	                        fi
 
-	                        logger "Are these options correct?"
-	                        warn "SYSLOG Server: $syslog_server_name"
-	                        warn "SYSLOG [PORT]: $syslog_port"
-	                        warn "SYSLOG [PROTOCOL]: $syslogprotocol"
-	                        read -p "[Y/N]? " correct_options
-	                        case $correct_options in
-	                                [Yy]* ) /bin/echo "Continuing with script!"; syslogcomplete="TRUE"; break;;
-	                                * ) /bin/echo "Prompting for input again!";;
-	                        esac
+		                        logger "Are these options correct?"
+		                        warn "SYSLOG Server: $syslog_server_name"
+		                        warn "SYSLOG [PORT]: $syslog_port"
+		                        warn "SYSLOG [PROTOCOL]: $syslogprotocol"
+		                        read -p "[Y/N]? " correct_options
+		                        case $correct_options in
+		                                [Yy]* ) /bin/echo "Continuing with script!"; syslogcomplete="TRUE"; break;;
+						[Nn]* ) /bin/echo "Enter options again..."; syslogcomplete="FALSE";;
+		                                * ) /bin/echo "Prompting for input again!";;
+		                        esac
+				else
+					break
+				fi
 	                done
-		syslogcomplete="TRUE"
 	        done
 	        if [ $syslogcomplete == "TRUE" ]; then
 	                logger "Setting up syslog configuration..."
@@ -647,7 +644,7 @@ function bootsy_security () {
 		# ===================
 		random_port=`/usr/bin/shuf --input=10000-30000 -n 1`
                 logger "Setting SSH over port $random_port"
-                /bin/sed -i "s/#Port 22/Port $andom_port/g" "/etc/ssh/sshd_config"
+                /bin/sed -i "s/#Port 22/Port $random_port/g" "/etc/ssh/sshd_config"
                 logger "Prohibiting root from logging in via SSH"
                 /bin/sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin no/g" "/etc/ssh/sshd_config"
 		worked="TUBULAR"
@@ -661,22 +658,27 @@ function bootsy_security () {
 function bootsy_start () {
 	cron=`/usr/bin/crontab -l`
 	if [ $emailconfig == "TRUE" ]; then
-                line="* * * * * $start_dir/check-bootsy.sh"
-                (crontab -u root -l; echo "$line" ) | crontab -u root -
+		cron_checkbootsy=`/usr/bin/crontab -l | /bin/grep "check-bootsy.sh"`
+		if [ -z "$cron_checkbootsy" ]; then
+	                line="* * * * * $start_dir/check-bootsy.sh"
+	                (/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
+		else
+			warn "check-bootsy.sh line already exists: $cron_checkbootsy"
+		fi
 	fi
 	# Run respounder every minute
-	cron_respounder=`echo $cron | grep respounder`
+	cron_respounder=`/usr/bin/crontab -l | /bin/grep "respounder"`
 	if [ -z "$cron_respounder" ]; then
 		line="* * * * * $install_dir/respounder/respounder"
-		(crontab -u root -l; echo "$line" ) | crontab -u root -
+		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
 	else
 		warn "Respounder cron line already exists: $cron_respounder"
 	fi
 	# Wait 2 minutes for all services to start because rpi and start artillery
-	cron_artillery=`echo $cron | grep artillery`
+	cron_artillery=`/usr/bin/crontab -l | /bin/grep "artillery"`
 	if [ -z "$cron_artillery" ]; then
 		line="@reboot sleep 120 && /usr/bin/python3 $install_dir/artillery/artillery.py"
-		(crontab -u root -l; echo "$line" ) | crontab -u root -
+		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
 	else
 		warn "Artillery cron line already exists: $cron_artillery"
 	fi
