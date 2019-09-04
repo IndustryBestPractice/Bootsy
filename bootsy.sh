@@ -147,7 +147,7 @@ while [[ ! $reallysure == "y" ]] && [[ ! $reallysure == "Y" ]]; do
         warn "  1) Change your hostname"
         warn "  2) Add a limited priv user"
         warn "  3) Setup key based SSH auth over an ethereal port"
-        error " 4) Don't run with the silent switch...it's broken logic meant for another time..."
+        error "  4) Don't run with the silent switch...it's broken logic meant for another time..."
         warn "Are you sure you would like to continue?"
         read -p "[Y/N]? " reallysure
                 case $reallysure in
@@ -334,6 +334,7 @@ function bootsy_install_logging () {
 	                logger "Copying $start_dir/99-bootsy-mail.conf to /etc/rsyslog.d"
 	                /bin/cp "$start_dir/99-bootsy-mail.conf" "/etc/rsyslog.d"
 		fi
+		/bin/echo "" #spacer
 	        #logger "Would you like to configure syslogging for bootsy detections?"
 		syslogcomplete="FALSE"
 	        while [ $syslogcomplete == "FALSE" ]; do
