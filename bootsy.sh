@@ -668,7 +668,7 @@ function bootsy_start () {
 		if [ -z "$cron_checkbootsy" ]; then
 	                line="* * * * * $start_dir/check-bootsy.sh"
 	                (/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
-			logger "Added line to crontab: $cron_checkbootsy"
+			logger "Added line to crontab: $line"
 		else
 			warn "check-bootsy.sh line already exists: $cron_checkbootsy"
 		fi
@@ -678,7 +678,7 @@ function bootsy_start () {
 	if [ -z "$cron_respounder" ]; then
 		line="* * * * * $install_dir/respounder/respounder"
 		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
-		logger "Added line to crontab: $cron_respounder"
+		logger "Added line to crontab: $line"
 	else
 		warn "Respounder cron line already exists: $cron_respounder"
 	fi
@@ -687,7 +687,7 @@ function bootsy_start () {
 	if [ -z "$cron_artillery" ]; then
 		line="@reboot sleep 120 && /usr/bin/python3 $install_dir/artillery/artillery.py"
 		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
-		logger "Added line to crontab: $cron_artillery"
+		logger "Added line to crontab: $line"
 	else
 		warn "Artillery cron line already exists: $cron_artillery"
 	fi
