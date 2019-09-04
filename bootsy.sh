@@ -24,7 +24,6 @@ MMMMMMMMMMMMMMMMMMMMMMMWx.    ..      .;;.      ..    .kWMMMMMMNc    .''.      .
 MMMMMMMMMMMMMMMMMMMMMMMMWk,       .,lkXWWXkl,.      .,kWMMMMMMMMK:.        .,lkK0dc'         .dNMMMMMMMMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMMMMMMMMMMWXd;...'lONMMMMMMMMNOc'...:xXMMMMMMMMMMMXd.     .cONMMMMMWKd,.     ;kWMMMMMMMMMMMMMMMMMMMMMMMMM
                                                         Bootsy!
-
 "
 
 # ================================== #
@@ -80,15 +79,13 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 #usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
-"$(basename "$0") [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
+usage="$(basename "$0") [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist]
 
 where (Note: All switches are optional and you will be prompted for those you don't specify):
         -h  Display this help message
         -i  Install path
         -c  IPList.csv file path
-        -w  Wordlist file path (adding this option stops the download of rockyou)
-        -l  Syslog config file path (leave this option blank to load our default config)
-        -u  Runs just the security portion of the script"
+        -w  Wordlist file path (adding this option stops the download of rockyou)"
 
 # Adding input for a silent parameter so we don't bother the user if they want to run this quietly
 # Parameters are added using double dashes. EX) --help
@@ -107,7 +104,7 @@ where (Note: All switches are optional and you will be prompted for those you do
 # Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
 security_only="FALSE"
-while getopts ":hi:c:w:l:u" opt
+while getopts ":hi:c:w:" opt
 do
 	case "${opt}" in
 		h ) info "$usage"
@@ -126,14 +123,6 @@ do
                         error "User entered wordlist not found! Will try using funkList200 or download rockyou from OffSec"
                         wordlist_path="$start_dir/funkList2000.txt"
                     fi
-		    ;;
-		l ) syslog_path="$OPTARG"
-		    if [ ! -f "$syslog_path" ]; then
-                        error "Syslog config not found! Will prompt user for input"
-                        syslog_path=""
-                    fi
-		    ;;
-		u ) security_only="TRUE"
 		    ;;
 	        \?) error "Illegal argument passed! Please see the help file!"
 		    info "$usage"
@@ -657,7 +646,7 @@ function bootsy_security () {
 
 function bootsy_start () {
 	cron=`/usr/bin/crontab -l`
-	if [ $emailconfig == "TRUE" ]; then
+	if [ "$emailconfig" == "TRUE" ]; then
 		cron_checkbootsy=`/usr/bin/crontab -l | /bin/grep "check-bootsy.sh"`
 		if [ -z "$cron_checkbootsy" ]; then
 	                line="* * * * * $start_dir/check-bootsy.sh"
