@@ -52,30 +52,39 @@ python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
 function logger {
 	GREEN='\033[0;32m'
 	NC='\033[0m' # No Color
+	/bin/echo -e "[+]$1" >> $install_path/bootsy_install.log
 	/bin/echo -e "${GREEN}[+]${NC}$1"
 }
 
 function error {
 	RED='\033[0;31m'
 	NC='\033[0m' # No Color
+	/bin/echo -e "[-]$1" >> $install_path/bootsy_install.log
 	/bin/echo -e "${RED}[-]${NC}$1"
 }
 
 function warn {
 	YELLOW='\033[1;33m'
 	NC='\033[0m' # No Color
+	/bin/echo -e "[*]$1" >> $install_path/bootsy_install.log
 	/bin/echo -e "${YELLOW}[*]${NC}$1"
 }
 
 function info {
 	BLUE='\033[0;34m'
 	NC='\033[0m' # No Color
+	/bin/echo -e "[INFO]$1" >> $install_path/bootsy_install.log
 	/bin/echo -e "${BLUE}$1${NC}"
 }
 
 if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root" 
    exit 1
+fi
+
+if [ -f "$install_path/bootsy_install.log" ]; then
+	/bin/rm "$install_path/bootsy_install.log" -f
+	error "Removing old bootsy install file: $install_path/bootsy_install.log"
 fi
 
 #usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
@@ -151,9 +160,9 @@ while [[ ! $reallysure == "y" ]] && [[ ! $reallysure == "Y" ]]; do
         warn "Are you sure you would like to continue?"
         read -p "[Y/N]? " reallysure
                 case $reallysure in
-                        [Yy]* ) /bin/echo "Continuing...";;
+                        [Yy]* ) logger "Continuing...";;
                         [Nn]* ) exit;;
-                        * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+                        * ) warn "Please enter either [Y/y] or [N/n].";;
                 esac
 done
 
@@ -213,9 +222,11 @@ function bootsy_download () {
 	# Download stuff
 	logger "Downloading respounder!"
 	/usr/bin/git clone https://github.com/IndustryBestPractice/respounder.git
+	info $rspounder
 
 	logger "Installing Go"
 	/usr/bin/apt-get install -y golang-go=2:1.7~5 || respounder_error="TRUE"
+	info $rspounder_go
 
 	logger "Building respounder"
 	go build -o $install_path/respounder/respounder $install_path/respounder/respounder.go || respounder_error="TRUE"
@@ -296,9 +307,9 @@ function bootsy_install_logging () {
 			logger "Would you like to configure email alerts for bootsy detections?"
 	        	read -p "[Y/N]? " email
 	                case "$email" in
-	        		[Yy]* ) /bin/echo "Starting email config!"; emailconfig="TRUE";;
+	        		[Yy]* ) logger "Starting email config!"; emailconfig="TRUE";;
 	                        [Nn]* ) break;;
-	                        * ) /bin/echo "Please enter either [Y/y] or [N/n]."; emailconfig="FALSE";;
+	                        * ) warn "Please enter either [Y/y] or [N/n]."; emailconfig="FALSE";;
 			esac
 
 			while [ $emailcomplete == "FALSE" ]; do
@@ -313,9 +324,9 @@ function bootsy_install_logging () {
 					warn "SMTP [TO] Address: $smtp_to_address"
 					read -p "[Y/N]? " correct_options
 					case $correct_options in
-						[Yy]* ) /bin/echo "Continuing with script!"; emailcomplete="TRUE";;
-						[Nn]* ) /bin/echo "Enter options again..."; emailcomplete="FALSE";;
-						* ) /bin/echo "Prompting for input again!";;
+						[Yy]* ) logger "Continuing with script!"; emailcomplete="TRUE";;
+						[Nn]* ) error "Enter options again..."; emailcomplete="FALSE";;
+						* ) warn "Prompting for input again!";;
 					esac
 				else
 					break
@@ -341,9 +352,9 @@ function bootsy_install_logging () {
 			logger "Would you like to configure syslogging for bootsy detections?"
 	                read -p "[Y/N]? " syslog
 	                case "$syslog" in
-	                        [Yy]* ) /bin/echo "Continuing with script!"; syslogconfig="TRUE";;
+	                        [Yy]* ) logger "Continuing with script!"; syslogconfig="TRUE";;
 	                        [Nn]* ) break;;
-	                        * ) /bin/echo "Please enter either [Y/y] or [N/n]."; syslogconfig="FALSE";;
+	                        * ) warn "Please enter either [Y/y] or [N/n]."; syslogconfig="FALSE";;
 	                esac
 
 	                while [ $syslogcomplete == "FALSE" ]; do
@@ -354,9 +365,9 @@ function bootsy_install_logging () {
 					while [ $properprotocol == "FALSE" ]; do
 		                                read -p "What is the SYSLOG protocol [TCP/UDP]? " syslogprotocol
 						case $syslogprotocol in
-							[TCPtcp]* ) /bin/echo "Chose TCP!"; syslog_protocol="@@"; properprotocol="TRUE";;
-							[UDPudp]* ) /bin/echo "Chose UDP!"; syslog_protocol="@"; properprotocol="TRUE";;
-							* ) /bin/echo "Enter TCP or UDP!";;
+							[TCPtcp]* ) logger "Chose TCP!"; syslog_protocol="@@"; properprotocol="TRUE";;
+							[UDPudp]* ) logger "Chose UDP!"; syslog_protocol="@"; properprotocol="TRUE";;
+							* ) warn "Enter TCP or UDP!";;
 						esac
 					done
 
@@ -366,9 +377,9 @@ function bootsy_install_logging () {
 		                        warn "SYSLOG [PROTOCOL]: $syslogprotocol"
 		                        read -p "[Y/N]? " correct_options
 		                        case $correct_options in
-		                                [Yy]* ) /bin/echo "Continuing with script!"; syslogcomplete="TRUE"; break;;
-						[Nn]* ) /bin/echo "Enter options again..."; syslogcomplete="FALSE";;
-		                                * ) /bin/echo "Prompting for input again!";;
+		                                [Yy]* ) logger "Continuing with script!"; syslogcomplete="TRUE"; break;;
+						[Nn]* ) logger "Enter options again..."; syslogcomplete="FALSE";;
+		                                * ) warn "Prompting for input again!";;
 		                        esac
 				else
 					break
@@ -406,9 +417,9 @@ function bootsy_install_python () {
 			while true; do
 				read -p "Do you want to continue? " yn
 				case $yn in
-					[Yy]* ) /bin/echo "Continuing with script!"; break;;
+					[Yy]* ) logger "Continuing with script!"; break;;
 					[Nn]* ) exit;;
-					* ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+					* ) warn "Please enter either [Y/y] or [N/n].";;
 				esac
 			done
 		fi
@@ -422,9 +433,9 @@ function bootsy_install_python () {
 	                while true; do
 	                        read -p "Do you want to continue? " yn
 	                        case $yn in
-	                                [Yy]* ) /bin/echo "Continuing with script!"; break;;
+	                                [Yy]* ) logger "Continuing with script!"; break;;
 	                                [Nn]* ) exit;;
-	                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+	                                * ) warn "Please enter either [Y/y] or [N/n].";;
 	                        esac
 	                done
 	        fi
@@ -438,9 +449,9 @@ function bootsy_install_python () {
 	                while true; do
 	                        read -p "Do you want to continue? " yn
 	                        case $yn in
-	                                [Yy]* ) /bin/echo "Continuing with script!"; break;;
+	                                [Yy]* ) logger "Continuing with script!"; break;;
 	                                [Nn]* ) exit;;
-	                                * ) /bin/echo "Please enter either [Y/y] or [N/n].";;
+	                                * ) warn "Please enter either [Y/y] or [N/n].";;
 	                        esac
 	                done
 	        fi
@@ -652,6 +663,7 @@ function bootsy_start () {
 		if [ -z "$cron_checkbootsy" ]; then
 	                line="* * * * * $start_dir/check-bootsy.sh"
 	                (/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
+			logger "Added line to crontab: $cron_checkbootsy"
 		else
 			warn "check-bootsy.sh line already exists: $cron_checkbootsy"
 		fi
@@ -661,6 +673,7 @@ function bootsy_start () {
 	if [ -z "$cron_respounder" ]; then
 		line="* * * * * $install_dir/respounder/respounder"
 		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
+		logger "Added line to crontab: $cron_respounder"
 	else
 		warn "Respounder cron line already exists: $cron_respounder"
 	fi
@@ -669,12 +682,15 @@ function bootsy_start () {
 	if [ -z "$cron_artillery" ]; then
 		line="@reboot sleep 120 && /usr/bin/python3 $install_dir/artillery/artillery.py"
 		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
+		logger "Added line to crontab: $cron_artillery"
 	else
 		warn "Artillery cron line already exists: $cron_artillery"
 	fi
 	# Now we enable the crontab for startup
+	logger "Enabling crontab on startup"
 	/bin/systemctl enable cron
 	# Now restart it
+	logger "Restarting cron service"
 	/usr/sbin/service cron restart
 }
 
