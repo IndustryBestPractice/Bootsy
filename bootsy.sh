@@ -238,6 +238,8 @@ function bootsy_download () {
 
 	logger "Downloading artillery"
 	/usr/bin/git clone https://github.com/IndustryBestPractice/artillery.git
+	logger "Running artillery install"
+	/usr/bin/python3 "$install_path/artillery/setup.py"
 
 	if [ ! -f "$wordlist_path" ]; then
 		error "Unable to locate $wordlist_path"
@@ -691,7 +693,7 @@ function bootsy_start () {
 	# Wait 2 minutes for all services to start because rpi and start artillery
 	cron_artillery=`/usr/bin/crontab -l | /bin/grep "artillery"`
 	if [ -z "$cron_artillery" ]; then
-		line="@reboot sleep 120 && /usr/bin/python3 $install_path/artillery/artillery.py"
+		line="@reboot sleep 120 && /usr/bin/python3 /var/artillery/artillery.py"
 		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
 		logger "Added line to crontab: $line"
 	else
