@@ -686,12 +686,14 @@ function bootsy_start () {
 	# Wait 2 minutes for all services to start because rpi and start artillery
 	cron_artillery=`/usr/bin/crontab -l | /bin/grep "artillery"`
 	if [ -z "$cron_artillery" ]; then
-		line="@reboot sleep 120 && /usr/bin/python3 $install_path/artillery/artillery.py"
+		line="@reboot sleep 120 && /usr/bin/python3 /var/artillery/artillery.py"
 		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
 		logger "Added line to crontab: $line"
 	else
 		warn "Artillery cron line already exists: $cron_artillery"
 	fi
+        logger "Copying $install_path/artillery/config to /var/artillery"
+        /bin/cp "$install_path/artillery/config" "/var/artillery/config"
 	# Now we enable the crontab for startup
 	logger "Enabling crontab on startup"
 	/bin/systemctl enable cron
