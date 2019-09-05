@@ -49,6 +49,11 @@ install_path=/bootsy
 # Getting python version
 python_version=$(/usr/bin/python3 --version 2>&1 | /usr/bin/cut -d ' ' -f 2)
 
+if [ ! -d "$install_path" ]; then
+	/bin/echo "Creating folder $install_path"
+        /bin/mkdir "$install_path"
+fi
+
 function logger {
 	GREEN='\033[0;32m'
 	NC='\033[0m' # No Color
