@@ -239,7 +239,7 @@ function bootsy_download () {
 	logger "Downloading artillery"
 	/usr/bin/git clone https://github.com/IndustryBestPractice/artillery.git
 	logger "Running artillery install"
-	/usr/bin/python3 "$install_path/artillery/setup.py"
+	/usr/bin/python3 "$install_path/artillery/setup.py -y"
 
 	if [ ! -f "$wordlist_path" ]; then
 		error "Unable to locate $wordlist_path"
