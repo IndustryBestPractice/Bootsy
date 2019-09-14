@@ -99,7 +99,8 @@ where (Note: All switches are optional and you will be prompted for those you do
         -h  Display this help message
         -i  Install path
         -c  IPList.csv file path
-        -w  Wordlist file path (adding this option stops the download of rockyou)"
+        -w  Wordlist file path (adding this option stops the download of rockyou)
+	-u  Whitelist file path"
 
 # Adding input for a silent parameter so we don't bother the user if they want to run this quietly
 # Parameters are added using double dashes. EX) --help
@@ -118,7 +119,7 @@ where (Note: All switches are optional and you will be prompted for those you do
 # Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
 security_only="FALSE"
-while getopts ":hi:c:w:" opt
+while getopts ":hi:c:w:u:" opt
 do
 	case "${opt}" in
 		h ) info "$usage"
@@ -137,6 +138,12 @@ do
                         error "User entered wordlist not found! Will try using funkList200 or download rockyou from OffSec"
                         wordlist_path="$start_dir/funkList2000.txt"
                     fi
+		    ;;
+		u ) whitelist_path="$OPTARG"
+		    if [ ! -f "$whitelist_path" ]; then
+			error "User entered whitelist not found! Will prompt the user for manual input."
+			whitelist_path=""
+		    fi
 		    ;;
 	        \?) error "Illegal argument passed! Please see the help file!"
 		    info "$usage"
@@ -711,6 +718,46 @@ function bootsy_start () {
 	/usr/sbin/service cron restart
 }
 
+function bootsy_setup_whitelist () {
+	if [ -z $whitelist_path ]; then
+		# User did not supply a file, so ask if they want to whitelist
+		logger "Would you like to add ip's to the whitelist file for artillery?"
+		read -p "[Y/N]? " perform_whitelist
+		if [[ $perform_whitelist == "y" ]] || [[ $perform_whitelist == "Y" ]]; then
+			logger "Enter IP's to add to the whitelist for BinaryDefense Artillery."
+			logger "Please only enter 1 IP per line, press enter and you will be prompted to add more ips"
+			wlarray=()
+			while [[ ! $addmore == "n" ]] && [[ ! $addmore == "N" ]]; do
+			        #clear
+			        warn "Would you like to add more IPs to the whitelist?"
+			        read -p "[Y/N]? " reallysure
+			        /bin/echo " "
+			                case $reallysure in
+			                        [Yy]* ) read -p "Please enter the IP you want to whitelist " wlip; wlarray+=( "$wlip" );;
+			                        [Nn]* ) addmore="n"; break;;
+			                        * ) wlarray=(${wlarray[@]}); warn "Please enter either [Y/y] or [N/n].";;
+			                esac
+			done
+                	stringvar=`printf "%s," "${wlarray[@]}" | cut -d "," -f 1-${#wlarray[@]}`
+	                /bin/sed -i "s/WHITELIST_IP.*/WHITELIST_IP=\"$stringvar\"/g" "$install_path/artillery/config"
+		fi
+                if [[ ! $perform_whitelist == "y" ]] && [[ ! $perform_whitelist == "Y" ]]; then
+                        warn "No whitelist identified or we were unable to find the supplied whitelist"
+                        warn "If this was an error, please edit the $install_path/artillery/config file manually"
+                fi
+        elif [ -f $whitelist_path ]; then
+                # We found the file
+                wlarray=()
+                while read line; do
+                        logger "Adding IP to whitelist: $line"
+                        wlarray+=( "$line" )
+                done < $whitelist_path
+                stringvar=`printf "%s," "${wlarray[@]}" | cut -d "," -f 1-${#wlarray[@]}`
+                /bin/sed -i "s/WHITELIST_IP.*/WHITELIST_IP=\"$stringvar\"/g" "$install_path/artillery/config"
+	fi
+	/bin/cat $install_path/artillery/config | /bin/grep  WHITELIST_IP
+}
+
 # Always do bootsy check
 info "===================="
 info "Checking environment"
@@ -734,6 +781,10 @@ if [ $security_only == "FALSE" ]; then
 	info "Gathering new interfaces"
 	info "========================"
 	bootsy_install_iplist
+	info "===================="
+	info "Setting up whitelist"
+	info "===================="
+	bootsy_setup_whitelist
 fi
 # Call security function
 worked="TOTALLY"

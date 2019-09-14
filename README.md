@@ -12,4 +12,5 @@ where (Note: All switches are optional and you will be prompted for those you do
         -i  Install path
         -c  IPList.csv file path
         -w  Wordlist file path (adding this option stops the download of rockyou)
+	-u  Whitelist file path
 ```
