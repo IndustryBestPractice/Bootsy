@@ -739,6 +739,7 @@ function bootsy_setup_whitelist () {
 			                esac
 			done
                 	stringvar=`printf "%s," "${wlarray[@]}" | cut -d "," -f 1-${#wlarray[@]}`
+			stringvar="127.0.0.1,localhost,$stringvar"
 	                /bin/sed -i "s/WHITELIST_IP.*/WHITELIST_IP=\"$stringvar\"/g" "$install_path/artillery/config"
 		fi
                 if [[ ! $perform_whitelist == "y" ]] && [[ ! $perform_whitelist == "Y" ]]; then
@@ -753,6 +754,7 @@ function bootsy_setup_whitelist () {
                         wlarray+=( "$line" )
                 done < $whitelist_path
                 stringvar=`printf "%s," "${wlarray[@]}" | cut -d "," -f 1-${#wlarray[@]}`
+		stringvar="127.0.0.1,localhost,$stringvar"
                 /bin/sed -i "s/WHITELIST_IP.*/WHITELIST_IP=\"$stringvar\"/g" "$install_path/artillery/config"
 	fi
 	/bin/cat $install_path/artillery/config | /bin/grep  WHITELIST_IP
