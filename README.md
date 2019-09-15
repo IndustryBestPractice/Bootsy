@@ -5,7 +5,7 @@ By combining Respounder (Responder detection) and Artillery (port and service sp
 
 # Usage
 ```
-./bootsy.sh [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist]
+./bootsy.sh [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-u /path/to/whitelist/file]
 
 where (Note: All switches are optional and you will be prompted for those you don't specify):
         -h  Display this help message
