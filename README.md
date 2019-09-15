@@ -28,7 +28,9 @@ A logfile of everything this script does is written to "$install_path/bootsy_ins
 + -w - This is the wordlist that is used to give the interfaces their various names. They are iterative, so make sure you have as many words in your wordlist as you do in your ipList.csv file.  
     - By default, we provide you with funkList2000.txt, which is a curated list of 3,496 of Bootsy Collins' best words used in his musical library.  
     - If you delete or do not want funkList2000.txt and do not provide an alternative, we will download rockyou from OffSec and use that...  
-+ -u - This is the whitelist file, for any IP's that you absolutely do not want "blacklisted" by default in artillery. You should enter items, one per line, such as your vulnerability scanner(s) (if you have one), and likely your jump box that you will use to get to this box, should you ever do an nmap of it for testing purposes and don't want yourself locked out.  
++ -u - This is the whitelist file, for any IP's that you absolutely do not want "blacklisted" by default in artillery.
+    - You should enter items, one per line, such as your vulnerability scanner(s) (if you have one), and likely your jump box that you will use to get to this box, should you ever do an nmap of it for testing purposes and don't want yourself locked out.
+    - If you do not provide a list, you will be prompted if there are any IP's you want to add manually during setup
 ---
 # Bootsy - Notes
 By combining Respounder (Responder detection) and Artillery (port and service spoofing) for deception, the hope is to quickly detect an attacker on the network early and without tipping them off that they have been found out.
