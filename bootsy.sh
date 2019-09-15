@@ -93,7 +93,7 @@ if [ -f "$install_path/bootsy_install.log" ]; then
 fi
 
 #usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
-usage="$(basename "$0") [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist]
+usage="$(basename "$0") [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-u /path/to/whitelist/file]
 
 where (Note: All switches are optional and you will be prompted for those you don't specify):
         -h  Display this help message
