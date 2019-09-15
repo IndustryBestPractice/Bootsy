@@ -1,5 +1,11 @@
-# Bootsy - History
+# Bootsy - Notes
 Bootsy Collins is a legendary bass guitar player who laid down the best basslines known to man. In his honour, we are attempting to lay down some of the best baselines known to InfoSec.
+
+By combining Respounder (Responder detection) and Artillery (port and service spoofing) for deception, the hope is to quickly detect an attacker on the network early and without tipping them off that they have been found out.
+
+This project is designed to be installed on a current version (September, 2019) of raspbian OS on the raspberry pi and has been tested on a raspberry 2 and 3. We maxed out listening on approx. 4k IP addresses on a single pi before it gave up the ghost. We recommend no more than 2,500 ips per pi.
+
+This version has also been tested on the 32-bit version of the raspberry pixel OS in a VM; however, we did test the limit on the number of ips that could be listened on.....soooo.....have fun and experiment!
 
 # Help File
 ```
@@ -29,15 +35,11 @@ A logfile of everything this script does is written to "$install_path/bootsy_ins
     - By default, we provide you with funkList2000.txt, which is a curated list of 3,496 of Bootsy Collins' best words used in his musical library.  
     - If you delete or do not want funkList2000.txt and do not provide an alternative, we will download rockyou from OffSec and use that...  
 + -u - This is the whitelist file, for any IP's that you absolutely do not want "blacklisted" by default in artillery.
-    - You should enter items, one per line, such as your vulnerability scanner(s) (if you have one), and likely your jump box that you will use to get to this box, should you ever do an nmap of it for testing purposes and don't want yourself locked out.
+    - You should enter items, one per line, such as:
+        - your vulnerability scanner(s) (if you have one)
+        - likely your jump box that you will use to get to this box, should you ever do an nmap of it for testing purposes and don't want yourself locked out.
     - If you do not provide a list, you will be prompted if there are any IP's you want to add manually during setup
 ---
-# Bootsy - Notes
-By combining Respounder (Responder detection) and Artillery (port and service spoofing) for deception, the hope is to quickly detect an attacker on the network early and without tipping them off that they have been found out.
-
-This project is designed to be installed on a current version (September, 2019) of raspbian OS on the raspberry pi and has been tested on a raspberry 2 and 3. We maxed out listening on approx. 4k IP addresses on a single pi before it gave up the ghost. We recommend no more than 2,500 ips per pi.
-
-This version has also been tested on the 32-bit version of the raspberry pixel OS in a VM; however, we did test the limit on the number of ips that could be listened on.....soooo.....have fun and experiment!
 
 # Bootsy - General Info
 + During the install, this script will do the following:
