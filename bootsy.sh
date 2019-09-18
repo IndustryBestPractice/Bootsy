@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Brought to you by the relatively ok minds of Snorkel42, MarshallBanana, and Grubby
@@ -93,14 +94,15 @@ if [ -f "$install_path/bootsy_install.log" ]; then
 fi
 
 #usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
-usage="$(basename "$0") [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-u /path/to/whitelist/file]
-
+usage="$(basename "$0") [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-u /path/to/whitelist/file] [-r /path/to/respounder/hostname/file]
 where (Note: All switches are optional and you will be prompted for those you don't specify):
         -h  Display this help message
         -i  Install path
         -c  IPList.csv file path
         -w  Wordlist file path (adding this option stops the download of rockyou)
-	-u  Whitelist file path"
+		-u  Whitelist file path
+		-r  Respounder Hostname file path"
+
 
 # Adding input for a silent parameter so we don't bother the user if they want to run this quietly
 # Parameters are added using double dashes. EX) --help
@@ -119,7 +121,7 @@ where (Note: All switches are optional and you will be prompted for those you do
 # Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
 security_only="FALSE"
-while getopts ":hi:c:w:u:" opt
+while getopts ":hi:c:w:u:r:" opt
 do
 	case "${opt}" in
 		h ) info "$usage"
@@ -149,6 +151,17 @@ do
 		    info "$usage"
 		    exit 1
 		    ;;
+		r ) respounderhostname_path="$OPTARG"
+		    if [ ! -f "$respounderhostname_path" ]; then
+			error "User entered respounder hostname file not found! Will prompt the user for manual input."
+			respounderhostname_path=""
+		    fi
+		    ;;
+	        \?) error "Illegal argument passed! Please see the help file!"
+		    info "$usage"
+		    exit 1
+		    ;;
+
 		: ) warn "Invalid option: $OPTARG requires an argument" 1>&2
 		    info "$usage"
 		    exit 1
@@ -482,6 +495,43 @@ function bootsy_install_python () {
 	fi
 }
 
+function bootsy_respounder_hostname () {
+	# Setup respounder hostname configuration
+	if [ $silent_param == "FALSE" ]; then
+		if [ -z $respounderhostname_path ]; then
+			logger "Please enter an accessible local or network path to a file containing the hostnames to use with Respounder."
+			info "The file shoudl contain one hostname per line."
+			info "Do not use valid hostnames unless you have LLMNR disabled in your environment"
+			logger "Press enter to have Respounder generate random hostnames instead"
+			read -p "Enter the respounder hostname file path and press [ENTER]: " respounder_path
+		fi
+	else
+		if [ -z $respounder_path ]; then
+			# Making var empty as we do a check for it below
+			respounder_path=""
+		else
+			respounder_path="$respounderhostname_path"
+		fi
+	fi
+
+	# Now validate we can see the file
+
+	if [ -z "$respounder_path" ]; then
+		logger "Will generate random hostnames!"
+		respounderhostname_path = ""
+	fi
+
+	if [ ! -f "$respounder_path" ]; then
+		error "File $respounder_path appears to either not exist or is not reachable."
+		error "Exiting setup!"
+		exit 1
+	else
+		respounderhostname_path="$respounder_path"
+	fi
+
+}
+
+
 function bootsy_install_iplist () {
 	# Now that everything is installed as expected, we need to prompt for the path to the IP_LIST file.
 	if [ $silent_param == "FALSE" ]; then
@@ -693,7 +743,11 @@ function bootsy_start () {
 	# Run respounder every minute
 	cron_respounder=`/usr/bin/crontab -l | /bin/grep "respounder"`
 	if [ -z "$cron_respounder" ]; then
-		line="* * * * * $install_path/respounder/respounder -rhostname -json | /usr/bin/logger -t responder-detected"
+	    if [ -z "$respounderhostname_path" ]; then
+			line="* * * * * $install_path/respounder/respounder -rhostname -json | /usr/bin/logger -t responder-detected"
+		else
+		    line="* * * * * $install_path/respounder/respounder -hostname \`shuf -n 1 $respounderhostname_path\` -json | /usr/bin/logger -t responder-detected"
+		fi
 		(/usr/bin/crontab -u root -l; /bin/echo "$line" ) | /usr/bin/crontab -u root -
 		logger "Added line to crontab: $line"
 	else
@@ -787,6 +841,12 @@ if [ $security_only == "FALSE" ]; then
 	info "Setting up whitelist"
 	info "===================="
 	bootsy_setup_whitelist
+	info "==============================="
+	info "Setting up Respounder hostnames"
+	info "==============================="
+	bootsy_respounder_hostname
+
+	
 fi
 # Call security function
 worked="TOTALLY"
