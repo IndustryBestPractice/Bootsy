@@ -498,7 +498,7 @@ function bootsy_respounder_hostname () {
 	if [ $silent_param == "FALSE" ]; then
 		if [ -z $respounderhostname_path ]; then
 			logger "Please enter an accessible local or network path to a file containing the hostnames to use with Respounder."
-			info "The file shoudl contain one hostname per line."
+			info "The file should contain one hostname per line."
 			info "Do not use valid hostnames unless you have LLMNR disabled in your environment"
 			logger "Press enter to have Respounder generate random hostnames instead"
 			read -p "Enter the respounder hostname file path and press [ENTER]: " respounder_path
