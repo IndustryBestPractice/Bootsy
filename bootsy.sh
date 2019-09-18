@@ -505,27 +505,25 @@ function bootsy_respounder_hostname () {
 		fi
 	else
 		if [ -z $respounder_path ]; then
-			# Making var empty as we do a check for it below
-			respounder_path=""
+			# Set respounderhostname_path to blank, will generate random hostnames
+			logger "Will generate random hostnames!"
+			respounderhostname_path=""
 		else
 			respounder_path="$respounderhostname_path"
+		
+			if [ ! -f "$respounder_path" ]; then
+				error "File $respounder_path appears to either not exist or is not reachable."
+				error "Exiting setup!"
+				exit 1
+			else
+				respounderhostname_path="$respounder_path"
+			fi
 		fi
 	fi
 
 	# Now validate we can see the file
 
-	if [ -z "$respounder_path" ]; then
-		logger "Will generate random hostnames!"
-		respounderhostname_path=""
-	fi
 
-	if [ ! -f "$respounder_path" ]; then
-		error "File $respounder_path appears to either not exist or is not reachable."
-		error "Exiting setup!"
-		exit 1
-	else
-		respounderhostname_path="$respounder_path"
-	fi
 }
 
 
