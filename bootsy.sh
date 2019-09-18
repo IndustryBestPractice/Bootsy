@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Brought to you by the relatively ok minds of Snorkel42, MarshallBanana, and Grubby
@@ -93,15 +94,15 @@ if [ -f "$install_path/bootsy_install.log" ]; then
 fi
 
 #usage="$(basename "$0") [-h] [-i /install/path] [-s] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-l /path/to/syslog/config]
-usage="$(basename "$0") [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-u /path/to/whitelist/file]
-
+usage="$(basename "$0") [-h] [-i /install/path] [-c /path/to/iplist.csv] [-w /path/to/wordlist] [-u /path/to/whitelist/file] [-r /path/to/respounder/hostname/file]
 where (Note: All switches are optional and you will be prompted for those you don't specify):
         -h  Display this help message
         -i  Install path
         -c  IPList.csv file path
         -w  Wordlist file path (adding this option stops the download of rockyou)
-		-r  respounder Hostname file path
-	-u  Whitelist file path"
+		-u  Whitelist file path
+		-r  Respounder Hostname file path"
+
 
 # Adding input for a silent parameter so we don't bother the user if they want to run this quietly
 # Parameters are added using double dashes. EX) --help
@@ -120,7 +121,7 @@ where (Note: All switches are optional and you will be prompted for those you do
 # Command line arguments are passed using single dashes EX) -i /bootsy
 silent_param="FALSE"
 security_only="FALSE"
-while getopts ":hi:c:w:r:u:" opt
+while getopts ":hi:c:w:u:r:" opt
 do
 	case "${opt}" in
 		h ) info "$usage"
@@ -140,16 +141,6 @@ do
                         wordlist_path="$start_dir/funkList2000.txt"
                     fi
 		    ;;
-		r ) respounderhostname_path="$OPTARG"
-		    if [ ! -f "$respounderhostname_path" ]; then
-			error "User entered respounder hostname file not found! Will prompt the user for manual input."
-			respounderhostname_path=""
-		    fi
-		    ;;
-	        \?) error "Illegal argument passed! Please see the help file!"
-		    info "$usage"
-		    exit 1
-		    ;;
 		u ) whitelist_path="$OPTARG"
 		    if [ ! -f "$whitelist_path" ]; then
 			error "User entered whitelist not found! Will prompt the user for manual input."
@@ -160,6 +151,17 @@ do
 		    info "$usage"
 		    exit 1
 		    ;;
+		r ) respounderhostname_path="$OPTARG"
+		    if [ ! -f "$respounderhostname_path" ]; then
+			error "User entered respounder hostname file not found! Will prompt the user for manual input."
+			respounderhostname_path=""
+		    fi
+		    ;;
+	        \?) error "Illegal argument passed! Please see the help file!"
+		    info "$usage"
+		    exit 1
+		    ;;
+
 		: ) warn "Invalid option: $OPTARG requires an argument" 1>&2
 		    info "$usage"
 		    exit 1
@@ -498,7 +500,7 @@ function bootsy_respounder_hostname () {
 	if [ $silent_param == "FALSE" ]; then
 		if [ -z $respounderhostname_path ]; then
 			logger "Please enter an accessible local or network path to a file containing the hostnames to use with Respounder."
-			info "The file should contain one hostname per line."
+			info "The file shoudl contain one hostname per line."
 			info "Do not use valid hostnames unless you have LLMNR disabled in your environment"
 			logger "Press enter to have Respounder generate random hostnames instead"
 			read -p "Enter the respounder hostname file path and press [ENTER]: " respounder_path
@@ -526,8 +528,8 @@ function bootsy_respounder_hostname () {
 	else
 		respounderhostname_path="$respounder_path"
 	fi
-}
 
+}
 
 
 function bootsy_install_iplist () {
@@ -843,6 +845,8 @@ if [ $security_only == "FALSE" ]; then
 	info "Setting up Respounder hostnames"
 	info "==============================="
 	bootsy_respounder_hostname
+
+	
 fi
 # Call security function
 worked="TOTALLY"
