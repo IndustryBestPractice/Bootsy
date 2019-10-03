@@ -248,7 +248,12 @@ function bootsy_download () {
 	info $rspounder
 
 	logger "Installing Go"
-	/usr/bin/apt-get install -y golang-go=2:1.7~5 || respounder_error="TRUE"
+        if [ "$release" == "10" ];
+        then
+	    /usr/bin/apt-get install -y golang-go=2:1.11~1 || respounder_error="TRUE"
+        else
+	    /usr/bin/apt-get install -y golang-go=2:1.7~5 || respounder_error="TRUE"
+        fi
 	info $rspounder_go
 
 	logger "Building respounder"
